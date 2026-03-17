@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formel — Upload Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #333; padding: 24px; }
+    h1 { margin-bottom: 16px; }
+
+    .config { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .config input { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+    .config input:first-child { width: 260px; }
+    .config input:nth-child(2) { flex: 1; min-width: 300px; }
+    .config button { padding: 8px 20px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .config button:hover { background: #1d4ed8; }
+
+    .status { padding: 10px 14px; margin-bottom: 20px; border-radius: 6px; font-size: 14px; display: none; }
+    .status.error { display: block; background: #fee2e2; color: #991b1b; }
+    .status.success { display: block; background: #dcfce7; color: #166534; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+
+    .card {
+      background: #fff; border-radius: 12px; padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.1); display: flex; flex-direction: column; align-items: center;
+    }
+    .card .photo {
+      width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
+      background: #e5e7eb; display: flex; align-items: center; justify-content: center;
+      font-size: 40px; color: #9ca3af; margin-bottom: 12px; overflow: hidden;
+    }
+    .card .photo img { width: 100%; height: 100%; object-fit: cover; }
+    .card h3 { font-size: 18px; margin-bottom: 2px; }
+    .card .meta { font-size: 13px; color: #666; margin-bottom: 14px; }
+
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .actions label, .actions button {
+      padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid #d1d5db;
+      background: #fff; color: #333; transition: all .15s;
+    }
+    .actions label:hover, .actions button:hover { background: #f3f4f6; }
+    .actions input[type="file"] { display: none; }
+
+    .doc-section { width: 100%; margin-top: 14px; border-top: 1px solid #eee; padding-top: 12px; }
+    .doc-section h4 { font-size: 13px; color: #666; margin-bottom: 8px; }
+    .doc-list { list-style: none; font-size: 13px; }
+    .doc-list li { padding: 4px 0; display: flex; justify-content: space-between; align-items: center; }
+    .doc-list a { color: #2563eb; text-decoration: none; }
+    .doc-list .badge { background: #e5e7eb; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+
+    select { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>Formel — Upload Test</h1>
+
+  <div class="config">
+    <input id="apiUrl" value="http://localhost:3000" placeholder="API base URL" />
+    <input id="token" placeholder="Paste JWT token here" />
+    <button onclick="loadStudents()">Load Students</button>
+  </div>
+
+  <div id="status" class="status"></div>
+  <div id="grid" class="grid"></div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    let API, TOKEN;
+
+    function headers() {
+      return { 'Authorization': `Bearer ${TOKEN}` };
+    }
+
+    function showStatus(msg, ok) {
+      const el = $('status');
+      el.textContent = msg;
+      el.className = 'status ' + (ok ? 'success' : 'error');
+      if (ok) setTimeout(() => el.style.display = 'none', 3000);
+    }
+
+    async function loadStudents() {
+      API = $('apiUrl').value.replace(/\/$/, '');
+      TOKEN = $('token').value.trim();
+      if (!TOKEN) return showStatus('Paste a JWT token first', false);
+
+      try {
+        const res = await fetch(`${API}/api/students?limit=50`, { headers: headers() });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const json = await res.json();
+        renderStudents(json.data);
+        showStatus(`Loaded ${json.data.length} students`, true);
+      } catch (err) {
+        showStatus(`Failed to load students: ${err.message}`, false);
+      }
+    }
+
+    async function loadDocuments(studentId) {
+      try {
+        const res = await fetch(`${API}/api/students/${studentId}/documents`, { headers: headers() });
+        if (!res.ok) return [];
+        const json = await res.json();
+        return json.data || [];
+      } catch { return []; }
+    }
+
+    function renderStudents(students) {
+      const grid = $('grid');
+      grid.innerHTML = '';
+
+      students.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = `card-${s.id}`;
+
+        const photoContent = s.profilePhotoUrl
+          ? `<img src="${s.profilePhotoUrl}" alt="photo" />`
+          : s.firstName[0] + s.lastName[0];
+
+        card.innerHTML = `
+          <div class="photo" id="photo-${s.id}">${photoContent}</div>
+          <h3>${s.firstName} ${s.lastName}</h3>
+          <div class="meta">${s.nie || '—'} · ${s.gender} · ${s.status}</div>
+          <div class="actions">
+            <label>
+              Upload Photo
+              <input type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadPhoto('${s.id}', this)" />
+            </label>
+            <label>
+              Upload Document
+              <input type="file" onchange="uploadDocument('${s.id}', this)" />
+            </label>
+            <select id="doctype-${s.id}">
+              <option value="birth_certificate">Birth Certificate</option>
+              <option value="id_card">ID Card</option>
+              <option value="transcript">Transcript</option>
+              <option value="medical_record">Medical Record</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="doc-section">
+            <h4>Documents</h4>
+            <ul class="doc-list" id="docs-${s.id}"><li>Loading…</li></ul>
+          </div>
+        `;
+        grid.appendChild(card);
+
+        // Load documents async
+        loadDocuments(s.id).then(docs => renderDocs(s.id, docs));
+      });
+    }
+
+    function renderDocs(studentId, docs) {
+      const ul = $(`docs-${studentId}`);
+      if (!docs.length) {
+        ul.innerHTML = '<li style="color:#999">No documents yet</li>';
+        return;
+      }
+      ul.innerHTML = docs.map(d => `
+        <li>
+          <a href="${d.documentUrl}" target="_blank">${d.documentType}</a>
+          <span class="badge">${new Date(d.createdAt).toLocaleDateString()}</span>
+        </li>
+      `).join('');
+    }
+
+    async function uploadPhoto(studentId, input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const form = new FormData();
+      form.append('photo', file);
+
+      try {
+        showStatus(`Uploading photo for ${studentId}…`, true);
+        const res = await fetch(`${API}/api/students/${studentId}/photo`, {
+          method: 'POST',
+          headers: headers(),
+          body: form,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || res.statusText);
+        }
+        const json = await res.json();
+        // Update the photo in the card
+        const photoDiv = $(`photo-${studentId}`);
+        photoDiv.innerHTML = `<img src="${json.profilePhotoUrl}" alt="photo" />`;
+        showStatus('Photo uploaded!', true);
+      } catch (err) {
+        showStatus(`Photo upload failed: ${err.message}`, false);
+      }
+      input.value = '';
+    }
+
+    async function uploadDocument(studentId, input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const docType = $(`doctype-${studentId}`).value;
+      const form = new FormData();
+      form.append('file', file);
+      form.append('documentType', docType);
+
+      try {
+        showStatus(`Uploading document for ${studentId}…`, true);
+        const res = await fetch(`${API}/api/students/${studentId}/documents`, {
+          method: 'POST',
+          headers: headers(),
+          body: form,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || res.statusText);
+        }
+        showStatus('Document uploaded!', true);
+        // Refresh document list
+        const docs = await loadDocuments(studentId);
+        renderDocs(studentId, docs);
+      } catch (err) {
+        showStatus(`Document upload failed: ${err.message}`, false);
+      }
+      input.value = '';
+    }
+  </script>
+</body>
+</html>

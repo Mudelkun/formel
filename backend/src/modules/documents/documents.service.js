@@ -40,6 +40,7 @@ async function uploadDocument(studentId, file, documentType) {
     .insert(studentDocuments)
     .values({
       studentId,
+      documentName: file.originalname,
       documentType,
       documentUrl: url,
       updatedAt: new Date(),
