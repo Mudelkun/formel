@@ -50,26 +50,26 @@ const {
 const router = Router();
 
 // Students CRUD
-router.get('/', auth, authorize('admin', 'staff', 'teacher'), validate(listStudentsSchema), listStudents);
-router.post('/', auth, authorize('admin', 'staff'), validate(createStudentSchema), createStudent);
-router.get('/:id', auth, authorize('admin', 'staff', 'teacher'), validate(studentIdParamSchema), getStudent);
-router.patch('/:id', auth, authorize('admin', 'staff'), validate(updateStudentSchema), updateStudent);
+router.get('/', auth, authorize('admin', 'secretary', 'teacher'), validate(listStudentsSchema), listStudents);
+router.post('/', auth, authorize('admin', 'secretary'), validate(createStudentSchema), createStudent);
+router.get('/:id', auth, authorize('admin', 'secretary', 'teacher'), validate(studentIdParamSchema), getStudent);
+router.patch('/:id', auth, authorize('admin', 'secretary'), validate(updateStudentSchema), updateStudent);
 
 // Photo
-router.post('/:id/photo', auth, authorize('admin', 'staff'), upload.single('photo'), uploadPhoto);
+router.post('/:id/photo', auth, authorize('admin', 'secretary'), upload.single('photo'), uploadPhoto);
 
 // Documents
-router.get('/:id/documents', auth, authorize('admin', 'staff'), validate(studentIdParamSchema), listDocuments);
-router.post('/:id/documents', auth, authorize('admin', 'staff'), upload.single('file'), validate(uploadDocumentSchema), uploadDocument);
+router.get('/:id/documents', auth, authorize('admin', 'secretary'), validate(studentIdParamSchema), listDocuments);
+router.post('/:id/documents', auth, authorize('admin', 'secretary'), upload.single('file'), validate(uploadDocumentSchema), uploadDocument);
 router.delete('/:id/documents/:docId', auth, authorize('admin'), deleteDocument);
 
 // Contacts
-router.get('/:id/contacts', auth, authorize('admin', 'staff'), validate(studentIdParamSchema), listContacts);
-router.post('/:id/contacts', auth, authorize('admin', 'staff'), validate(createContactSchema), createContact);
-router.patch('/:id/contacts/:contactId', auth, authorize('admin', 'staff'), validate(updateContactSchema), updateContact);
+router.get('/:id/contacts', auth, authorize('admin', 'secretary'), validate(studentIdParamSchema), listContacts);
+router.post('/:id/contacts', auth, authorize('admin', 'secretary'), validate(createContactSchema), createContact);
+router.patch('/:id/contacts/:contactId', auth, authorize('admin', 'secretary'), validate(updateContactSchema), updateContact);
 router.delete('/:id/contacts/:contactId', auth, authorize('admin'), deleteContact);
 
 // Balance
-router.get('/:id/balance', auth, authorize('admin', 'staff'), validate(getBalanceSchema), getBalance);
+router.get('/:id/balance', auth, authorize('admin', 'secretary'), validate(getBalanceSchema), getBalance);
 
 module.exports = router;

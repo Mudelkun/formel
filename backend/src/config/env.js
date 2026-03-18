@@ -11,6 +11,8 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET_NAME: z.string().optional(),
   R2_PUBLIC_URL: z.string().optional(),
+  JWT_REFRESH_SECRET: z.string().optional(),
+  REFRESH_TOKEN_EXPIRY_DAYS: z.coerce.number().default(7),
   PORT: z.coerce.number().default(3000),
 });
 

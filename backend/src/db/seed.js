@@ -22,11 +22,11 @@ async function seed() {
     role: 'admin',
   }).returning();
 
-  const [staff] = await db.insert(schema.users).values({
+  const [secretary] = await db.insert(schema.users).values({
     name: 'Secrétaire Marie',
     email: 'marie@formel.school',
-    passwordHash: await bcrypt.hash('staff123', 10),
-    role: 'staff',
+    passwordHash: await bcrypt.hash('secretary123', 10),
+    role: 'secretary',
   }).returning();
 
   const [teacher] = await db.insert(schema.users).values({
@@ -36,7 +36,7 @@ async function seed() {
     role: 'teacher',
   }).returning();
 
-  console.log('✓ Users created (admin/staff/teacher)');
+  console.log('✓ Users created (admin/secretary/teacher)');
 
   // --- School Settings ---
   await db.insert(schema.schoolSettings).values({
@@ -147,7 +147,7 @@ async function seed() {
   console.log('\nSeed complete!');
   console.log('\nTest accounts:');
   console.log('  admin@formel.school / admin123');
-  console.log('  marie@formel.school / staff123');
+  console.log('  marie@formel.school / secretary123');
   console.log('  jean@formel.school  / teacher123');
 
   await client.end();

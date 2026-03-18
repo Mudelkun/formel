@@ -1,0 +1,89 @@
+const { eq, count } = require('drizzle-orm');
+const { db } = require('../../config/database');
+const { classes } = require('../../db/schema/classes');
+const { AppError } = require('../../lib/apiError');
+const { logAudit } = require('../../lib/auditLogger');
+
+async function listClasses({ page, limit }) {
+  const [data, [{ total: totalCount }]] = await Promise.all([
+    db.select().from(classes)
+      .limit(limit).offset((page - 1) * limit)
+      .orderBy(classes.gradeLevel),
+    db.select({ total: count() }).from(classes),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+    },
+  };
+}
+
+async function createClass(data, userId) {
+  const [existing] = await db
+    .select({ id: classes.id })
+    .from(classes)
+    .where(eq(classes.gradeLevel, data.gradeLevel));
+
+  if (existing) {
+    throw new AppError(409, 'Grade level already exists');
+  }
+
+  const [created] = await db
+    .insert(classes)
+    .values({ ...data, updatedAt: new Date() })
+    .returning();
+
+  logAudit(userId, 'create', 'classes', created.id, null, created);
+  return created;
+}
+
+async function getClassById(id) {
+  const [cls] = await db
+    .select()
+    .from(classes)
+    .where(eq(classes.id, id));
+
+  if (!cls) {
+    throw new AppError(404, 'Class not found');
+  }
+
+  return cls;
+}
+
+async function updateClass(id, data, userId) {
+  const [existing] = await db
+    .select()
+    .from(classes)
+    .where(eq(classes.id, id));
+
+  if (!existing) {
+    throw new AppError(404, 'Class not found');
+  }
+
+  if (data.gradeLevel) {
+    const [duplicate] = await db
+      .select({ id: classes.id })
+      .from(classes)
+      .where(eq(classes.gradeLevel, data.gradeLevel));
+
+    if (duplicate && duplicate.id !== id) {
+      throw new AppError(409, 'Grade level already in use');
+    }
+  }
+
+  const [updated] = await db
+    .update(classes)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(classes.id, id))
+    .returning();
+
+  logAudit(userId, 'update', 'classes', id, existing, updated);
+  return updated;
+}
+
+module.exports = { listClasses, createClass, getClassById, updateClass };

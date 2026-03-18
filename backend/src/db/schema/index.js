@@ -11,6 +11,7 @@ const { users } = require('./users');
 const { paymentDocuments } = require('./paymentDocuments');
 const { schoolSettings } = require('./schoolSettings');
 const { auditLogs } = require('./auditLogs');
+const { refreshTokens } = require('./refreshTokens');
 
 module.exports = {
   students,
@@ -26,4 +27,5 @@ module.exports = {
   paymentDocuments,
   schoolSettings,
   auditLogs,
+  refreshTokens,
 };
