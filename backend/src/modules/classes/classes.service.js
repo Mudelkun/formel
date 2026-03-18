@@ -1,6 +1,7 @@
 const { eq, count } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { classes } = require('../../db/schema/classes');
+const { classGroups } = require('../../db/schema/classGroups');
 const { AppError } = require('../../lib/apiError');
 const { logAudit } = require('../../lib/auditLogger');
 
@@ -31,6 +32,16 @@ async function createClass(data, userId) {
 
   if (existing) {
     throw new AppError(409, 'Grade level already exists');
+  }
+
+  // Verify class group exists
+  const [group] = await db
+    .select({ id: classGroups.id })
+    .from(classGroups)
+    .where(eq(classGroups.id, data.classGroupId));
+
+  if (!group) {
+    throw new AppError(404, 'Class group not found');
   }
 
   const [created] = await db
@@ -73,6 +84,17 @@ async function updateClass(id, data, userId) {
 
     if (duplicate && duplicate.id !== id) {
       throw new AppError(409, 'Grade level already in use');
+    }
+  }
+
+  if (data.classGroupId) {
+    const [group] = await db
+      .select({ id: classGroups.id })
+      .from(classGroups)
+      .where(eq(classGroups.id, data.classGroupId));
+
+    if (!group) {
+      throw new AppError(404, 'Class group not found');
     }
   }
 

@@ -7,10 +7,10 @@ const listPaymentsSchema = z.object({
 const createPaymentSchema = z.object({
   params: z.object({ id: z.string().uuid() }),
   body: z.object({
-    quarterId: z.string().uuid().nullable().optional(),
     amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
     paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     paymentMethod: z.string().min(1).max(50).optional(),
+    isBookPayment: z.boolean().optional().default(false),
     notes: z.string().optional(),
   }),
 });

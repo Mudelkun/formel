@@ -9,10 +9,11 @@ const usersRouter = require('./modules/users/users.routes');
 const studentsRouter = require('./modules/students/students.routes');
 const settingsRouter = require('./modules/settings/settings.routes');
 const schoolYearsRouter = require('./modules/school-years/schoolYears.routes');
-const quartersRouter = require('./modules/quarters/quarters.routes');
+const classGroupsRouter = require('./modules/class-groups/classGroups.routes');
 const classesRouter = require('./modules/classes/classes.routes');
 const enrollmentsRouter = require('./modules/enrollments/enrollments.routes');
 const paymentsRouter = require('./modules/payments/payments.routes');
+const versementsRouter = require('./modules/versements/versements.routes');
 const financeRouter = require('./modules/finance/finance.routes');
 const auditLogsRouter = require('./modules/audit-logs/auditLogs.routes');
 
@@ -28,10 +29,11 @@ app.use('/api/users', usersRouter);
 app.use('/api/students', studentsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/school-years', schoolYearsRouter);
-app.use('/api/quarters', quartersRouter);
+app.use('/api/class-groups', classGroupsRouter);
 app.use('/api/classes', classesRouter);
 app.use('/api/enrollments', enrollmentsRouter);
 app.use('/api/payments', paymentsRouter);
+app.use('/api/versements', versementsRouter);
 app.use('/api/finance', financeRouter);
 app.use('/api/audit-logs', auditLogsRouter);
 

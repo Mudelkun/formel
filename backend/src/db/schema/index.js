@@ -1,10 +1,12 @@
 const { students } = require('./students');
 const { contacts } = require('./contacts');
 const { studentDocuments } = require('./studentDocuments');
+const { classGroups } = require('./classGroups');
 const { classes } = require('./classes');
 const { schoolYears } = require('./schoolYears');
 const { enrollments } = require('./enrollments');
-const { quarters } = require('./quarters');
+const { feeConfigs } = require('./feeConfigs');
+const { versements } = require('./versements');
 const { payments } = require('./payments');
 const { scholarships } = require('./scholarships');
 const { users } = require('./users');
@@ -17,10 +19,12 @@ module.exports = {
   students,
   contacts,
   studentDocuments,
+  classGroups,
   classes,
   schoolYears,
   enrollments,
-  quarters,
+  feeConfigs,
+  versements,
   payments,
   scholarships,
   users,

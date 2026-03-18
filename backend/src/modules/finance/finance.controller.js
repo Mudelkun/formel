@@ -6,9 +6,9 @@ const getSummary = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
-const getQuarterFinance = asyncHandler(async (req, res) => {
-  const result = await financeService.getQuarterFinance(req.params.id);
+const getVersementFinance = asyncHandler(async (req, res) => {
+  const result = await financeService.getVersementFinance(req.params.id);
   res.json(result);
 });
 
-module.exports = { getSummary, getQuarterFinance };
+module.exports = { getSummary, getVersementFinance };

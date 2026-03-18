@@ -56,23 +56,44 @@ async function seed() {
   }).returning();
   console.log('✓ School year created (2025-2026)');
 
-  // --- Quarters ---
-  const quarterData = [
-    { schoolYearId: schoolYear.id, name: 'Trimestre 1', number: 1, startDate: '2025-09-01', endDate: '2025-11-30' },
-    { schoolYearId: schoolYear.id, name: 'Trimestre 2', number: 2, startDate: '2025-12-01', endDate: '2026-02-28' },
-    { schoolYearId: schoolYear.id, name: 'Trimestre 3', number: 3, startDate: '2026-03-01', endDate: '2026-06-30' },
-  ];
-  const quarters = await db.insert(schema.quarters).values(quarterData).returning();
-  console.log('✓ 3 quarters created');
+  // --- Class Groups ---
+  const [primaire] = await db.insert(schema.classGroups).values({
+    name: 'Primaire',
+  }).returning();
+
+  const [secondaire] = await db.insert(schema.classGroups).values({
+    name: 'Secondaire',
+  }).returning();
+  console.log('✓ 2 class groups created (Primaire, Secondaire)');
+
+  // --- Fee Configs (bookFee per classGroup + schoolYear) ---
+  await db.insert(schema.feeConfigs).values([
+    { classGroupId: primaire.id, schoolYearId: schoolYear.id, bookFee: '25000' },
+    { classGroupId: secondaire.id, schoolYearId: schoolYear.id, bookFee: '35000' },
+  ]);
+  console.log('✓ Fee configs created');
+
+  // --- Versements ---
+  await db.insert(schema.versements).values([
+    // Primaire versements
+    { classGroupId: primaire.id, schoolYearId: schoolYear.id, number: 1, name: '1er versement', amount: '50000', dueDate: '2025-10-15' },
+    { classGroupId: primaire.id, schoolYearId: schoolYear.id, number: 2, name: '2ème versement', amount: '50000', dueDate: '2026-01-15' },
+    { classGroupId: primaire.id, schoolYearId: schoolYear.id, number: 3, name: '3ème versement', amount: '50000', dueDate: '2026-04-15' },
+    // Secondaire versements
+    { classGroupId: secondaire.id, schoolYearId: schoolYear.id, number: 1, name: '1er versement', amount: '65000', dueDate: '2025-10-15' },
+    { classGroupId: secondaire.id, schoolYearId: schoolYear.id, number: 2, name: '2ème versement', amount: '65000', dueDate: '2026-01-15' },
+    { classGroupId: secondaire.id, schoolYearId: schoolYear.id, number: 3, name: '3ème versement', amount: '65000', dueDate: '2026-04-15' },
+  ]);
+  console.log('✓ 6 versements created (3 per group)');
 
   // --- Classes ---
   const classData = [
-    { name: 'CP1', gradeLevel: 1, annualTuitionFee: '150000' },
-    { name: 'CP2', gradeLevel: 2, annualTuitionFee: '150000' },
-    { name: 'CE1', gradeLevel: 3, annualTuitionFee: '175000' },
-    { name: 'CE2', gradeLevel: 4, annualTuitionFee: '175000' },
-    { name: 'CM1', gradeLevel: 5, annualTuitionFee: '200000' },
-    { name: 'CM2', gradeLevel: 6, annualTuitionFee: '200000' },
+    { name: 'CP1', gradeLevel: 1, classGroupId: primaire.id },
+    { name: 'CP2', gradeLevel: 2, classGroupId: primaire.id },
+    { name: 'CE1', gradeLevel: 3, classGroupId: primaire.id },
+    { name: 'CE2', gradeLevel: 4, classGroupId: primaire.id },
+    { name: 'CM1', gradeLevel: 5, classGroupId: secondaire.id },
+    { name: 'CM2', gradeLevel: 6, classGroupId: secondaire.id },
   ];
   const classes = await db.insert(schema.classes).values(classData).returning();
   console.log('✓ 6 classes created');
@@ -106,13 +127,13 @@ async function seed() {
 
   // --- Enrollments (active students in active school year) ---
   const enrollmentData = [
-    { studentId: students[0].id, classId: classes[0].id, schoolYearId: schoolYear.id }, // Amadou -> CP1
-    { studentId: students[1].id, classId: classes[1].id, schoolYearId: schoolYear.id }, // Fatou -> CP2
-    { studentId: students[2].id, classId: classes[0].id, schoolYearId: schoolYear.id }, // Moussa -> CP1
-    { studentId: students[3].id, classId: classes[2].id, schoolYearId: schoolYear.id }, // Aïssatou -> CE1
-    { studentId: students[4].id, classId: classes[3].id, schoolYearId: schoolYear.id }, // Ibrahim -> CE2
-    { studentId: students[5].id, classId: classes[0].id, schoolYearId: schoolYear.id }, // Mariama -> CP1
-    { studentId: students[6].id, classId: classes[4].id, schoolYearId: schoolYear.id }, // Ousmane -> CM1
+    { studentId: students[0].id, classId: classes[0].id, schoolYearId: schoolYear.id }, // Amadou -> CP1 (Primaire)
+    { studentId: students[1].id, classId: classes[1].id, schoolYearId: schoolYear.id }, // Fatou -> CP2 (Primaire)
+    { studentId: students[2].id, classId: classes[0].id, schoolYearId: schoolYear.id }, // Moussa -> CP1 (Primaire)
+    { studentId: students[3].id, classId: classes[2].id, schoolYearId: schoolYear.id }, // Aïssatou -> CE1 (Primaire)
+    { studentId: students[4].id, classId: classes[3].id, schoolYearId: schoolYear.id }, // Ibrahim -> CE2 (Primaire)
+    { studentId: students[5].id, classId: classes[0].id, schoolYearId: schoolYear.id }, // Mariama -> CP1 (Primaire)
+    { studentId: students[6].id, classId: classes[4].id, schoolYearId: schoolYear.id }, // Ousmane -> CM1 (Secondaire)
   ];
   const enrollments = await db.insert(schema.enrollments).values(enrollmentData).returning();
   console.log('✓ 7 enrollments created');
@@ -127,22 +148,23 @@ async function seed() {
 
   // --- Payments ---
   const paymentData = [
-    // Amadou: paid Q1 fully
-    { enrollmentId: enrollments[0].id, quarterId: quarters[0].id, amount: '50000', paymentDate: '2025-09-15', paymentMethod: 'cash', status: 'completed' },
-    // Amadou: paid Q2 partially
-    { enrollmentId: enrollments[0].id, quarterId: quarters[1].id, amount: '30000', paymentDate: '2025-12-10', paymentMethod: 'transfer', status: 'completed' },
-    // Fatou: paid Q1 (with scholarship, owes 75k/3 = 25k per quarter)
-    { enrollmentId: enrollments[1].id, quarterId: quarters[0].id, amount: '25000', paymentDate: '2025-09-20', paymentMethod: 'cash', status: 'completed' },
+    // Amadou: paid 1er versement fully (50000) + partial book payment
+    { enrollmentId: enrollments[0].id, amount: '50000', paymentDate: '2025-09-15', paymentMethod: 'cash', status: 'completed', isBookPayment: false },
+    { enrollmentId: enrollments[0].id, amount: '15000', paymentDate: '2025-09-15', paymentMethod: 'cash', status: 'completed', isBookPayment: true },
+    // Amadou: partial 2ème versement
+    { enrollmentId: enrollments[0].id, amount: '30000', paymentDate: '2025-12-10', paymentMethod: 'transfer', status: 'completed', isBookPayment: false },
+    // Fatou: paid toward versements (with 50% scholarship)
+    { enrollmentId: enrollments[1].id, amount: '25000', paymentDate: '2025-09-20', paymentMethod: 'cash', status: 'completed', isBookPayment: false },
     // Moussa: one pending payment
-    { enrollmentId: enrollments[2].id, quarterId: quarters[0].id, amount: '50000', paymentDate: '2025-10-01', paymentMethod: 'check', status: 'pending' },
-    // Ibrahim: paid Q1 fully
-    { enrollmentId: enrollments[4].id, quarterId: quarters[0].id, amount: '58333', paymentDate: '2025-09-18', paymentMethod: 'transfer', status: 'completed' },
-    // Ousmane: paid Q1 and Q2
-    { enrollmentId: enrollments[6].id, quarterId: quarters[0].id, amount: '66667', paymentDate: '2025-09-12', paymentMethod: 'cash', status: 'completed' },
-    { enrollmentId: enrollments[6].id, quarterId: quarters[1].id, amount: '66667', paymentDate: '2025-12-05', paymentMethod: 'cash', status: 'completed' },
+    { enrollmentId: enrollments[2].id, amount: '50000', paymentDate: '2025-10-01', paymentMethod: 'check', status: 'pending', isBookPayment: false },
+    // Ibrahim: paid 1er versement
+    { enrollmentId: enrollments[4].id, amount: '50000', paymentDate: '2025-09-18', paymentMethod: 'transfer', status: 'completed', isBookPayment: false },
+    // Ousmane: paid 1er and 2ème versement (Secondaire: 65000 each)
+    { enrollmentId: enrollments[6].id, amount: '65000', paymentDate: '2025-09-12', paymentMethod: 'cash', status: 'completed', isBookPayment: false },
+    { enrollmentId: enrollments[6].id, amount: '65000', paymentDate: '2025-12-05', paymentMethod: 'cash', status: 'completed', isBookPayment: false },
   ];
   await db.insert(schema.payments).values(paymentData);
-  console.log('✓ 7 payments created');
+  console.log('✓ 8 payments created');
 
   console.log('\nSeed complete!');
   console.log('\nTest accounts:');

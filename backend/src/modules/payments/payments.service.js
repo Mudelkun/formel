@@ -2,7 +2,6 @@ const { eq } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { payments } = require('../../db/schema/payments');
 const { enrollments } = require('../../db/schema/enrollments');
-const { quarters } = require('../../db/schema/quarters');
 const { AppError } = require('../../lib/apiError');
 const { logAudit } = require('../../lib/auditLogger');
 
@@ -31,17 +30,6 @@ async function listPayments(enrollmentId) {
 
 async function createPayment(enrollmentId, data, role, userId) {
   await verifyEnrollmentExists(enrollmentId);
-
-  if (data.quarterId) {
-    const [quarter] = await db
-      .select({ id: quarters.id })
-      .from(quarters)
-      .where(eq(quarters.id, data.quarterId));
-
-    if (!quarter) {
-      throw new AppError(404, 'Quarter not found');
-    }
-  }
 
   const status = role === 'admin' ? 'completed' : 'pending';
 

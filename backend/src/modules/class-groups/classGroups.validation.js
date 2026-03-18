@@ -1,36 +1,32 @@
 const { z } = require('zod');
 
-const listClassesSchema = z.object({
+const listClassGroupsSchema = z.object({
   query: z.object({
     page: z.coerce.number().int().positive().optional().default(1),
     limit: z.coerce.number().int().positive().max(100).optional().default(20),
   }),
 });
 
-const createClassSchema = z.object({
+const createClassGroupSchema = z.object({
   body: z.object({
     name: z.string().min(1).max(100),
-    gradeLevel: z.coerce.number().int().positive(),
-    classGroupId: z.string().uuid(),
   }),
 });
 
-const updateClassSchema = z.object({
+const updateClassGroupSchema = z.object({
   params: z.object({ id: z.string().uuid() }),
   body: z.object({
     name: z.string().min(1).max(100).optional(),
-    gradeLevel: z.coerce.number().int().positive().optional(),
-    classGroupId: z.string().uuid().optional(),
   }),
 });
 
-const classIdParamSchema = z.object({
+const classGroupIdParamSchema = z.object({
   params: z.object({ id: z.string().uuid() }),
 });
 
 module.exports = {
-  listClassesSchema,
-  createClassSchema,
-  updateClassSchema,
-  classIdParamSchema,
+  listClassGroupsSchema,
+  createClassGroupSchema,
+  updateClassGroupSchema,
+  classGroupIdParamSchema,
 };

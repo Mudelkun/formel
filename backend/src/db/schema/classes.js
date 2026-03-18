@@ -1,10 +1,11 @@
-const { pgTable, uuid, varchar, integer, numeric, timestamp } = require('drizzle-orm/pg-core');
+const { pgTable, uuid, varchar, integer, timestamp } = require('drizzle-orm/pg-core');
+const { classGroups } = require('./classGroups');
 
 const classes = pgTable('classes', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name').notNull(),
   gradeLevel: integer('grade_level').unique().notNull(),
-  annualTuitionFee: numeric('annual_tuition_fee').notNull(),
+  classGroupId: uuid('class_group_id').notNull().references(() => classGroups.id),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at'),
 });

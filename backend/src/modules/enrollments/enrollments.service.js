@@ -3,6 +3,7 @@ const { db } = require('../../config/database');
 const { enrollments } = require('../../db/schema/enrollments');
 const { students } = require('../../db/schema/students');
 const { classes } = require('../../db/schema/classes');
+const { classGroups } = require('../../db/schema/classGroups');
 const { schoolYears } = require('../../db/schema/schoolYears');
 const { AppError } = require('../../lib/apiError');
 const { logAudit } = require('../../lib/auditLogger');
@@ -101,12 +102,14 @@ async function getEnrollmentById(id) {
       studentLastName: students.lastName,
       className: classes.name,
       gradeLevel: classes.gradeLevel,
-      annualTuitionFee: classes.annualTuitionFee,
+      classGroupId: classes.classGroupId,
+      classGroupName: classGroups.name,
       schoolYear: schoolYears.year,
     })
     .from(enrollments)
     .innerJoin(students, eq(enrollments.studentId, students.id))
     .innerJoin(classes, eq(enrollments.classId, classes.id))
+    .innerJoin(classGroups, eq(classes.classGroupId, classGroups.id))
     .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
     .where(eq(enrollments.id, id));
 

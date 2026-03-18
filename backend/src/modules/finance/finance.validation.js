@@ -3,12 +3,12 @@ const { z } = require('zod');
 const financeSummarySchema = z.object({
   query: z.object({
     classId: z.string().uuid().optional(),
-    quarterId: z.string().uuid().optional(),
+    classGroupId: z.string().uuid().optional(),
   }),
 });
 
-const quarterFinanceSchema = z.object({
+const versementFinanceSchema = z.object({
   params: z.object({ id: z.string().uuid() }),
 });
 
-module.exports = { financeSummarySchema, quarterFinanceSchema };
+module.exports = { financeSummarySchema, versementFinanceSchema };
