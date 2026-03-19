@@ -18,3 +18,8 @@ today's objective are
  The versement is like an amount due by a specific data, for example if we have first versement (2000) by janurary, second (4000) by march, third (2000) by the end of the school year. We need to be able to see in the system if a student as paid full versement by du date. When anyone record a payment in the system the person needs to have the oiption to select if the payment is for book specificly, because book and first versement can be required in other to have a good balance by versement due date. We should still calculate the total remaing balance for the student from the total tiution for the specific group meaning book payments + school year payments.
 
  We should never restric how much a student is able to pay. If a payment is not for book specific we should take it and divide it acros all versement to see which versement we are actualy up to for a specific student. We can always have fields with: amount remaning for current versement, amount remaning for books, amount remaing for school year.
+
+
+
+
+ lets start woking on the frontend,for now we will build the login page and connect it to the api. We will display a diffrent message for diffrent user role to validate that i authenticate as the right user. Folow FrontendTechStack.md and good-design.md for referal.
