@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/context/auth';
 import AppLayout from '@/components/layout/AppLayout';
 import LoginPage from '@/pages/LoginPage';
@@ -18,6 +19,12 @@ import AuditLogsPage from '@/pages/AuditLogsPage';
 import SettingsPage from '@/pages/SettingsPage';
 import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+
+function DashboardRedirect() {
+  const { user } = useAuth();
+  if (user?.role === 'teacher') return <Navigate to="/students" replace />;
+  return <DashboardPage />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,7 +87,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<DashboardPage />} />
+                <Route index element={<DashboardRedirect />} />
 
                 {/* Gestion Scolaire */}
                 <Route path="students" element={<StudentsPage />} />
@@ -161,6 +168,7 @@ export default function App() {
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
+      <Toaster />
     </QueryClientProvider>
   );
 }

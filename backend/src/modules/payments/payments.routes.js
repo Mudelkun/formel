@@ -3,8 +3,8 @@ const { auth } = require('../../middleware/auth');
 const { authorize } = require('../../middleware/authorize');
 const { validate } = require('../../middleware/validate');
 const { upload } = require('../../middleware/upload');
-const { getPaymentSchema, updatePaymentSchema } = require('./payments.validation');
-const { getPayment, updatePayment } = require('./payments.controller');
+const { listAllPaymentsSchema, getPaymentSchema, updatePaymentSchema } = require('./payments.validation');
+const { listAllPayments, getPayment, updatePayment } = require('./payments.controller');
 
 // Payment Documents (nested under payments)
 const {
@@ -18,6 +18,9 @@ const {
 } = require('../payment-documents/paymentDocuments.controller');
 
 const router = Router();
+
+// Global payments list (must be before /:id)
+router.get('/', auth, authorize('admin', 'secretary'), validate(listAllPaymentsSchema), listAllPayments);
 
 // Standalone payment routes
 router.get('/:id', auth, authorize('admin', 'secretary'), validate(getPaymentSchema), getPayment);

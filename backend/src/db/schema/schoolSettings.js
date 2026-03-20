@@ -6,6 +6,7 @@ const schoolSettings = pgTable('school_settings', {
   address: text('address'),
   phone: varchar('phone'),
   email: varchar('email'),
+  currency: varchar('currency').notNull().default('HTG'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at'),
 });

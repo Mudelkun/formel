@@ -26,10 +26,16 @@ const activateSchoolYear = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
+const promoteStudents = asyncHandler(async (req, res) => {
+  const result = await schoolYearsService.promoteStudents(req.params.id, req.user.userId);
+  res.json(result);
+});
+
 module.exports = {
   listSchoolYears,
   createSchoolYear,
   getSchoolYear,
   updateSchoolYear,
   activateSchoolYear,
+  promoteStudents,
 };

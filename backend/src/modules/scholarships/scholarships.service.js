@@ -16,32 +16,20 @@ async function verifyEnrollmentExists(enrollmentId) {
   }
 }
 
-async function getScholarship(enrollmentId) {
+async function listScholarships(enrollmentId) {
   await verifyEnrollmentExists(enrollmentId);
 
-  const [scholarship] = await db
+  const data = await db
     .select()
     .from(scholarships)
-    .where(eq(scholarships.enrollmentId, enrollmentId));
+    .where(eq(scholarships.enrollmentId, enrollmentId))
+    .orderBy(scholarships.createdAt);
 
-  if (!scholarship) {
-    throw new AppError(404, 'No scholarship found for this enrollment');
-  }
-
-  return scholarship;
+  return data;
 }
 
 async function createScholarship(enrollmentId, data, userId) {
   await verifyEnrollmentExists(enrollmentId);
-
-  const [existing] = await db
-    .select({ id: scholarships.id })
-    .from(scholarships)
-    .where(eq(scholarships.enrollmentId, enrollmentId));
-
-  if (existing) {
-    throw new AppError(409, 'Scholarship already exists for this enrollment');
-  }
 
   const [created] = await db
     .insert(scholarships)
@@ -52,39 +40,39 @@ async function createScholarship(enrollmentId, data, userId) {
   return created;
 }
 
-async function updateScholarship(enrollmentId, data, userId) {
+async function updateScholarship(scholarshipId, data, userId) {
   const [existing] = await db
     .select()
     .from(scholarships)
-    .where(eq(scholarships.enrollmentId, enrollmentId));
+    .where(eq(scholarships.id, scholarshipId));
 
   if (!existing) {
-    throw new AppError(404, 'No scholarship found for this enrollment');
+    throw new AppError(404, 'Scholarship not found');
   }
 
   const [updated] = await db
     .update(scholarships)
     .set({ ...data, updatedAt: new Date() })
-    .where(eq(scholarships.enrollmentId, enrollmentId))
+    .where(eq(scholarships.id, scholarshipId))
     .returning();
 
-  logAudit(userId, 'update', 'scholarships', existing.id, existing, updated);
+  logAudit(userId, 'update', 'scholarships', scholarshipId, existing, updated);
   return updated;
 }
 
-async function deleteScholarship(enrollmentId, userId) {
+async function deleteScholarship(scholarshipId, userId) {
   const [existing] = await db
     .select()
     .from(scholarships)
-    .where(eq(scholarships.enrollmentId, enrollmentId));
+    .where(eq(scholarships.id, scholarshipId));
 
   if (!existing) {
-    throw new AppError(404, 'No scholarship found for this enrollment');
+    throw new AppError(404, 'Scholarship not found');
   }
 
-  await db.delete(scholarships).where(eq(scholarships.enrollmentId, enrollmentId));
+  await db.delete(scholarships).where(eq(scholarships.id, scholarshipId));
 
-  logAudit(userId, 'delete', 'scholarships', existing.id, existing, null);
+  logAudit(userId, 'delete', 'scholarships', scholarshipId, existing, null);
 }
 
-module.exports = { getScholarship, createScholarship, updateScholarship, deleteScholarship };
+module.exports = { listScholarships, createScholarship, updateScholarship, deleteScholarship };

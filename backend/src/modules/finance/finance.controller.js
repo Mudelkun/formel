@@ -11,4 +11,9 @@ const getVersementFinance = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
-module.exports = { getSummary, getVersementFinance };
+const getDashboardStats = asyncHandler(async (req, res) => {
+  const result = await financeService.getDashboardStats();
+  res.json(result);
+});
+
+module.exports = { getSummary, getVersementFinance, getDashboardStats };

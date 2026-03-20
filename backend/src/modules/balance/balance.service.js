@@ -10,18 +10,50 @@ const { feeConfigs } = require('../../db/schema/feeConfigs');
 const { versements } = require('../../db/schema/versements');
 const { AppError } = require('../../lib/apiError');
 
-function computeDiscount(scholarship, totalTuition) {
-  if (!scholarship) return 0;
-  switch (scholarship.type) {
-    case 'full':
-      return totalTuition;
-    case 'partial':
-      return totalTuition * (Number(scholarship.percentage) / 100);
-    case 'fixed_amount':
-      return Math.min(Number(scholarship.fixedAmount), totalTuition);
-    default:
-      return 0;
+/**
+ * Compute total discount from multiple scholarships.
+ * Returns { proportionalDiscount, versementAnnulations: Map<versementId, amount>, bookAnnulation: amount }
+ */
+function computeDiscounts(scholarshipList, totalTuition) {
+  let proportionalDiscount = 0;
+  const versementAnnulations = new Map();
+  let bookAnnulation = 0;
+
+  for (const s of scholarshipList) {
+    switch (s.type) {
+      case 'full':
+        proportionalDiscount += totalTuition;
+        break;
+      case 'partial':
+        proportionalDiscount += totalTuition * (Number(s.percentage) / 100);
+        break;
+      case 'fixed_amount':
+        proportionalDiscount += Math.min(Number(s.fixedAmount), totalTuition);
+        break;
+      case 'versement_annulation': {
+        const current = versementAnnulations.get(s.targetVersementId) || 0;
+        versementAnnulations.set(s.targetVersementId, current + Number(s.fixedAmount));
+        break;
+      }
+      case 'book_annulation':
+        bookAnnulation += Number(s.fixedAmount);
+        break;
+    }
   }
+
+  return { proportionalDiscount, versementAnnulations, bookAnnulation };
+}
+
+/**
+ * Simple total discount for finance summaries (flattens all scholarship types into a single number).
+ */
+function computeTotalDiscount(scholarshipList, totalTuition) {
+  const { proportionalDiscount, versementAnnulations, bookAnnulation } = computeDiscounts(scholarshipList, totalTuition);
+  let total = proportionalDiscount + bookAnnulation;
+  for (const amount of versementAnnulations.values()) {
+    total += amount;
+  }
+  return Math.min(total, totalTuition);
 }
 
 async function getBalance(studentId) {
@@ -75,24 +107,29 @@ async function getBalance(studentId) {
     ))
     .orderBy(versements.number);
 
-  const versementsTotal = versementList.reduce((sum, v) => sum + Number(v.amount), 0);
+  const versementsTotal = versementList.reduce((s, v) => s + Number(v.amount), 0);
   const totalTuition = versementsTotal + bookFee;
 
-  // Get scholarship discount
-  const [scholarship] = await db
+  // Get ALL scholarships for this enrollment
+  const scholarshipList = await db
     .select()
     .from(scholarships)
     .where(eq(scholarships.enrollmentId, enrollment.enrollmentId));
 
-  const discount = computeDiscount(scholarship, totalTuition);
-  const discountRatio = totalTuition > 0 ? discount / totalTuition : 0;
+  const { proportionalDiscount, versementAnnulations, bookAnnulation } = computeDiscounts(scholarshipList, totalTuition);
+  const discountRatio = totalTuition > 0 ? Math.min(proportionalDiscount, totalTuition) / totalTuition : 0;
 
-  // Compute effective amounts after scholarship
-  const effectiveBookFee = Math.round(bookFee * (1 - discountRatio) * 100) / 100;
-  const effectiveVersements = versementList.map((v) => ({
-    ...v,
-    effectiveAmount: Math.round(Number(v.amount) * (1 - discountRatio) * 100) / 100,
-  }));
+  // Compute effective amounts after scholarships
+  // First apply proportional discount, then subtract direct annulations
+  const effectiveBookFee = Math.max(0, Math.round((bookFee * (1 - discountRatio) - bookAnnulation) * 100) / 100);
+  const effectiveVersements = versementList.map((v) => {
+    const baseEffective = Number(v.amount) * (1 - discountRatio);
+    const annulation = versementAnnulations.get(v.id) || 0;
+    return {
+      ...v,
+      effectiveAmount: Math.max(0, Math.round((baseEffective - annulation) * 100) / 100),
+    };
+  });
 
   // Sum completed non-book payments
   const [{ nonBookPaid }] = await db
@@ -146,7 +183,8 @@ async function getBalance(studentId) {
   // Find current (first unpaid) versement
   const currentVersement = versementDetails.find((v) => !v.isPaidInFull) || null;
 
-  const amountDue = Math.round((totalTuition - discount) * 100) / 100;
+  const totalDiscount = computeTotalDiscount(scholarshipList, totalTuition);
+  const amountDue = Math.round((totalTuition - totalDiscount) * 100) / 100;
   const totalPaid = Math.round((totalNonBookPaid + totalBookPaid) * 100) / 100;
 
   return {
@@ -159,7 +197,7 @@ async function getBalance(studentId) {
     },
     total: {
       tuition: totalTuition,
-      scholarshipDiscount: Math.round(discount * 100) / 100,
+      scholarshipDiscount: Math.round(totalDiscount * 100) / 100,
       amountDue,
       amountPaid: totalPaid,
       amountRemaining: Math.round((amountDue - totalPaid) * 100) / 100,
@@ -172,4 +210,4 @@ async function getBalance(studentId) {
   };
 }
 
-module.exports = { getBalance, computeDiscount };
+module.exports = { getBalance, computeDiscounts, computeTotalDiscount };

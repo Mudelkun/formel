@@ -14,6 +14,7 @@ const {
   getSchoolYear,
   updateSchoolYear,
   activateSchoolYear,
+  promoteStudents,
 } = require('./schoolYears.controller');
 
 const router = Router();
@@ -24,5 +25,6 @@ router.post('/', auth, authorize('admin'), validate(createSchoolYearSchema), cre
 router.get('/:id', auth, authorize('admin', 'secretary'), validate(schoolYearIdParamSchema), getSchoolYear);
 router.patch('/:id', auth, authorize('admin'), validate(updateSchoolYearSchema), updateSchoolYear);
 router.patch('/:id/activate', auth, authorize('admin'), validate(schoolYearIdParamSchema), activateSchoolYear);
+router.post('/:id/promote', auth, authorize('admin'), validate(schoolYearIdParamSchema), promoteStudents);
 
 module.exports = router;

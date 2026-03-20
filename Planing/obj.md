@@ -3,9 +3,9 @@ today's objective are
  - imliment authentification routes.
 
 
- my prompt
+ ## my prompt
 
- 1. A classs group is dividing a group of classs to give it a referal name
+ - A classs group is dividing a group of classs to give it a referal name
  example: PPS to MS (prescolaire), CP to CM2 (primaire), 6em to 3em (secondaire)
 
  There is a buisness logic in the app that we need to change. 
@@ -22,4 +22,56 @@ today's objective are
 
 
 
- lets start woking on the frontend,for now we will build the login page and connect it to the api. We will display a diffrent message for diffrent user role to validate that i authenticate as the right user. Folow FrontendTechStack.md and good-design.md for referal.
+ - lets start woking on the frontend,for now we will build the login page and connect it to the api. We will display a diffrent message for diffrent user role to validate that i authenticate as the right user. Folow FrontendTechStack.md and good-design.md for referal.
+
+
+ - we will be implimenting the studnets management right now in the frontend -- refer to userflow in the planing/diagram to fetch information about how the student management acctually works ---- we need to configure everything there is to be configured for a student management only.
+
+ ## note for the frontend
+
+  - change the student's status from "Actif" to "inscrit" "inactif" to "transferer"
+
+  - We need to be able to click on a student and see more details about that student and be avble to update ata about the student as well: uploading new documents and stuff like that
+
+  - We need to had a curency field in settings page and in the database and use that to display currency in the frontend
+  
+  - since incription are push automaticly when we create a student, we do not need to be able to create one - this migh cause conflict with duplicating inscription for the same student.
+
+  - Automatic grade promotion is handle by the frontend so we need to add a button for that with confirm modal
+
+  - We need to be able to record a new payment by clicking a button like the create student button
+
+  - We need a way to confirm secretary's recorded payment in the frontend
+
+  - we need to be able to click on a payment and see more detail about the payment including its documents
+
+  - We need a contact page to see studen'ts contact informmation and be able to send custom or premaid message to students 
+
+  - Prof accounts should not have acces to "Tableau de bord"
+
+  - Even when i talk in english the app should stay in french as it will make it easier to show things to the institution later on.
+
+ - we need a grade column in the student page
+
+
+Note for finance
+
+for the scholarships - acctually a student can have many types of scholarships -- a scholarship can be partial or a fixed amount --- the scholarship can also be a annulation of a versement or book payment: its like setting a fixe scholarship amount that instenly goes toward a given versement or the book payment.
+
+More notes
+
+we need to impliment advanced student search queries in the search bar --- we should alwayz try to get what user types and try to find students based on that -- right now i can oly search by one word at a time --  i want to be able to search student by firstname and lastname at the same time
+
+
+i need to be able to change the amount set for versement and book fee for class group of classe at any time - when i click the "configuerr button", the model should be pre populated with data that i had already set and i should be able to overwrite them when  click the mettre a joure button
+
+## Thanks to claude
+
+ - You are doing a grade job at styling the website modernly i'm impressed. Keep up with the good work.
+
+## what claud has freedom to impliment
+
+- financial analytic
+- dashboard with noce disigning
+
+

@@ -1,6 +1,8 @@
-const { eq, count } = require('drizzle-orm');
+const { eq, and, ne, count, desc } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { schoolYears } = require('../../db/schema/schoolYears');
+const { enrollments } = require('../../db/schema/enrollments');
+const { classes } = require('../../db/schema/classes');
 const { AppError } = require('../../lib/apiError');
 const { logAudit } = require('../../lib/auditLogger');
 
@@ -115,10 +117,100 @@ async function activateSchoolYear(id, userId) {
   return result;
 }
 
+async function promoteStudents(targetSchoolYearId, userId) {
+  // Verify target year exists
+  const [targetYear] = await db
+    .select()
+    .from(schoolYears)
+    .where(eq(schoolYears.id, targetSchoolYearId));
+
+  if (!targetYear) {
+    throw new AppError(404, 'Target school year not found');
+  }
+
+  // Auto-detect source year: most recently created year before the target (excluding target)
+  const [sourceYear] = await db
+    .select()
+    .from(schoolYears)
+    .where(ne(schoolYears.id, targetSchoolYearId))
+    .orderBy(desc(schoolYears.createdAt))
+    .limit(1);
+
+  if (!sourceYear) {
+    throw new AppError(404, 'No source school year found for promotion');
+  }
+
+  // Get all enrollments from source year with class info
+  const sourceEnrollments = await db
+    .select({
+      studentId: enrollments.studentId,
+      gradeLevel: classes.gradeLevel,
+    })
+    .from(enrollments)
+    .innerJoin(classes, eq(enrollments.classId, classes.id))
+    .where(eq(enrollments.schoolYearId, sourceYear.id));
+
+  // Get all classes sorted by gradeLevel for target mapping
+  const allClasses = await db
+    .select({ id: classes.id, gradeLevel: classes.gradeLevel })
+    .from(classes)
+    .orderBy(classes.gradeLevel);
+
+  const classByGrade = {};
+  for (const c of allClasses) {
+    classByGrade[c.gradeLevel] = c.id;
+  }
+
+  // Check which students already have enrollment in target year
+  const existingEnrollments = await db
+    .select({ studentId: enrollments.studentId })
+    .from(enrollments)
+    .where(eq(enrollments.schoolYearId, targetSchoolYearId));
+
+  const alreadyEnrolled = new Set(existingEnrollments.map((e) => e.studentId));
+
+  let promoted = 0;
+  let skipped = 0;
+
+  const result = await db.transaction(async (tx) => {
+    for (const se of sourceEnrollments) {
+      // Skip if already enrolled in target year
+      if (alreadyEnrolled.has(se.studentId)) {
+        skipped++;
+        continue;
+      }
+
+      const nextGrade = se.gradeLevel + 1;
+      const nextClassId = classByGrade[nextGrade];
+
+      if (!nextClassId) {
+        // No class for next grade level (graduated or no class defined)
+        skipped++;
+        continue;
+      }
+
+      await tx.insert(enrollments).values({
+        studentId: se.studentId,
+        classId: nextClassId,
+        schoolYearId: targetSchoolYearId,
+        updatedAt: new Date(),
+      });
+
+      promoted++;
+    }
+
+    return { promoted, skipped };
+  });
+
+  logAudit(userId, 'promote', 'school_years', targetSchoolYearId, { sourceYearId: sourceYear.id }, result);
+  return { ...result, sourceYear: sourceYear.year, targetYear: targetYear.year };
+}
+
 module.exports = {
   listSchoolYears,
   createSchoolYear,
   getSchoolYearById,
   updateSchoolYear,
   activateSchoolYear,
+  promoteStudents,
 };

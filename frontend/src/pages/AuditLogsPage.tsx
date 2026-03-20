@@ -1,7 +1,11 @@
+import { useState, useEffect } from 'react';
+import { useAuditLogs } from '@/hooks/use-audit-logs';
 import PageHeader from '@/components/PageHeader';
+import Pagination from '@/components/Pagination';
+import EmptyState from '@/components/EmptyState';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -10,14 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Search } from 'lucide-react';
+import { FileText } from 'lucide-react';
 
 const actionLabels: Record<string, { label: string; color: string }> = {
   CREATE: { label: 'Création', color: 'bg-green-100 text-green-700 hover:bg-green-100' },
@@ -37,16 +34,25 @@ const tableLabels: Record<string, string> = {
   school_years: 'Années scolaires',
 };
 
-const mockLogs = [
-  { id: '1', user: 'Admin Principal', action: 'CREATE', table: 'students', date: '18/03/2026 14:32', recordId: 'abc-123' },
-  { id: '2', user: 'Secrétaire Marie', action: 'CREATE', table: 'payments', date: '18/03/2026 14:28', recordId: 'def-456' },
-  { id: '3', user: 'Admin Principal', action: 'UPDATE', table: 'fee_configs', date: '18/03/2026 13:15', recordId: 'ghi-789' },
-  { id: '4', user: 'Admin Principal', action: 'CREATE', table: 'enrollments', date: '18/03/2026 12:45', recordId: 'jkl-012' },
-  { id: '5', user: 'Secrétaire Marie', action: 'UPDATE', table: 'students', date: '18/03/2026 11:30', recordId: 'mno-345' },
-  { id: '6', user: 'Admin Principal', action: 'DELETE', table: 'users', date: '17/03/2026 16:00', recordId: 'pqr-678' },
-];
-
 export default function AuditLogsPage() {
+  const [actionFilter, setActionFilter] = useState('');
+  const [tableFilter, setTableFilter] = useState('');
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [actionFilter, tableFilter]);
+
+  const { data, isLoading } = useAuditLogs({
+    action: actionFilter || undefined,
+    tableName: tableFilter || undefined,
+    page,
+    limit: 20,
+  });
+
+  const logs = data?.data ?? [];
+  const pagination = data?.pagination;
+
   return (
     <>
       <PageHeader
@@ -58,32 +64,26 @@ export default function AuditLogsPage() {
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Rechercher par utilisateur..." className="pl-9" />
-            </div>
-            <Select>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Action" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes</SelectItem>
-                <SelectItem value="CREATE">Création</SelectItem>
-                <SelectItem value="UPDATE">Modification</SelectItem>
-                <SelectItem value="DELETE">Suppression</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Table" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes</SelectItem>
-                {Object.entries(tableLabels).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={actionFilter}
+              onChange={(e) => setActionFilter(e.target.value)}
+            >
+              <option value="">Toutes les actions</option>
+              <option value="CREATE">Création</option>
+              <option value="UPDATE">Modification</option>
+              <option value="DELETE">Suppression</option>
+            </select>
+            <select
+              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={tableFilter}
+              onChange={(e) => setTableFilter(e.target.value)}
+            >
+              <option value="">Toutes les tables</option>
+              {Object.entries(tableLabels).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
           </div>
         </CardContent>
       </Card>
@@ -91,39 +91,69 @@ export default function AuditLogsPage() {
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Utilisateur</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead className="hidden sm:table-cell">Table</TableHead>
-                <TableHead className="hidden md:table-cell">ID enregistrement</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mockLogs.map((log) => {
-                const action = actionLabels[log.action] ?? { label: log.action, color: '' };
-                return (
-                  <TableRow key={log.id}>
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{log.date}</TableCell>
-                    <TableCell className="font-medium">{log.user}</TableCell>
-                    <TableCell>
-                      <Badge className={`text-xs ${action.color}`}>{action.label}</Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <Badge variant="outline" className="text-xs">
-                        {tableLabels[log.table] ?? log.table}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground">
-                      {log.recordId}
-                    </TableCell>
+          {isLoading ? (
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : logs.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="Aucune entrée trouvée"
+              description={
+                actionFilter || tableFilter
+                  ? 'Essayez de modifier vos filtres.'
+                  : "Aucune action enregistrée pour le moment."
+              }
+            />
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Utilisateur</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead className="hidden sm:table-cell">Table</TableHead>
+                    <TableHead className="hidden md:table-cell">ID enregistrement</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => {
+                    const action = actionLabels[log.action] ?? { label: log.action, color: '' };
+                    return (
+                      <TableRow key={log.id}>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {new Date(log.createdAt).toLocaleDateString('fr-FR')}{' '}
+                          {new Date(log.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </TableCell>
+                        <TableCell className="font-medium">{log.userName || '—'}</TableCell>
+                        <TableCell>
+                          <Badge className={`text-xs ${action.color}`}>{action.label}</Badge>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge variant="outline" className="text-xs">
+                            {tableLabels[log.tableName] ?? log.tableName}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground">
+                          {log.recordId ? log.recordId.slice(0, 8) : '—'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              {pagination && (
+                <Pagination
+                  page={pagination.page}
+                  totalPages={pagination.totalPages}
+                  onPageChange={setPage}
+                />
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </>

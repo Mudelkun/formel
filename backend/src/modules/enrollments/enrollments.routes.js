@@ -15,13 +15,13 @@ const {
 
 // Scholarships (nested under enrollments)
 const {
-  getScholarshipSchema,
+  listScholarshipsSchema,
   createScholarshipSchema,
   updateScholarshipSchema,
   deleteScholarshipSchema,
 } = require('../scholarships/scholarships.validation');
 const {
-  getScholarship,
+  listScholarships,
   createScholarship,
   updateScholarship,
   deleteScholarship,
@@ -30,6 +30,7 @@ const {
 // Payments (nested under enrollments)
 const { listPaymentsSchema, createPaymentSchema } = require('../payments/payments.validation');
 const { listPayments, createPayment } = require('../payments/payments.controller');
+const { upload } = require('../../middleware/upload');
 
 const router = Router();
 
@@ -38,14 +39,12 @@ router.get('/', auth, authorize('admin', 'secretary'), validate(listEnrollmentsS
 router.post('/', auth, authorize('admin', 'secretary'), validate(createEnrollmentSchema), createEnrollment);
 router.get('/:id', auth, authorize('admin', 'secretary'), validate(enrollmentIdParamSchema), getEnrollment);
 
-// Scholarships
-router.get('/:id/scholarship', auth, authorize('admin', 'secretary'), validate(getScholarshipSchema), getScholarship);
-router.post('/:id/scholarship', auth, authorize('admin'), validate(createScholarshipSchema), createScholarship);
-router.patch('/:id/scholarship', auth, authorize('admin'), validate(updateScholarshipSchema), updateScholarship);
-router.delete('/:id/scholarship', auth, authorize('admin'), validate(deleteScholarshipSchema), deleteScholarship);
+// Scholarships — list & create nested under enrollment
+router.get('/:id/scholarships', auth, authorize('admin', 'secretary'), validate(listScholarshipsSchema), listScholarships);
+router.post('/:id/scholarships', auth, authorize('admin'), validate(createScholarshipSchema), createScholarship);
 
 // Payments
 router.get('/:id/payments', auth, authorize('admin', 'secretary'), validate(listPaymentsSchema), listPayments);
-router.post('/:id/payments', auth, authorize('admin', 'secretary'), validate(createPaymentSchema), createPayment);
+router.post('/:id/payments', auth, authorize('admin', 'secretary'), upload.single('file'), validate(createPaymentSchema), createPayment);
 
 module.exports = router;

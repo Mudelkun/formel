@@ -1,49 +1,211 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import ConfigureFeesDialog from '@/components/class-groups/ConfigureFeesDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Layers, Settings, School } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuth } from '@/context/auth';
+import { useClassGroups, useCreateClassGroup, useFees } from '@/hooks/use-class-groups';
+import { useClasses, useSchoolYears } from '@/hooks/use-students';
+import { useCurrency } from '@/hooks/use-currency';
+import type { ClassGroup, FeesResponse } from '@/api/class-groups';
+import { Plus, Layers, Settings, School, Loader2 } from 'lucide-react';
 
-const mockGroups = [
-  {
-    id: '1',
-    name: 'Préscolaire',
-    classes: ['PPS', 'PS', 'MS'],
-    bookFee: '5 000 F',
-    versements: [
-      { number: 1, name: '1er versement', amount: '15 000 F', dueDate: '15 Oct 2025' },
-      { number: 2, name: '2ème versement', amount: '20 000 F', dueDate: '15 Jan 2026' },
-      { number: 3, name: '3ème versement', amount: '15 000 F', dueDate: '15 Avr 2026' },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Primaire',
-    classes: ['CP', 'CE1', 'CE2', 'CM1', 'CM2'],
-    bookFee: '8 000 F',
-    versements: [
-      { number: 1, name: '1er versement', amount: '25 000 F', dueDate: '15 Oct 2025' },
-      { number: 2, name: '2ème versement', amount: '35 000 F', dueDate: '15 Jan 2026' },
-      { number: 3, name: '3ème versement', amount: '25 000 F', dueDate: '15 Avr 2026' },
-    ],
-  },
-  {
-    id: '3',
-    name: 'Secondaire',
-    classes: ['6ème', '5ème', '4ème', '3ème'],
-    bookFee: '12 000 F',
-    versements: [
-      { number: 1, name: '1er versement', amount: '35 000 F', dueDate: '15 Oct 2025' },
-      { number: 2, name: '2ème versement', amount: '50 000 F', dueDate: '15 Jan 2026' },
-      { number: 3, name: '3ème versement', amount: '35 000 F', dueDate: '15 Avr 2026' },
-    ],
-  },
-];
+const createGroupSchema = z.object({
+  name: z.string().min(1, 'Nom requis'),
+});
+
+type CreateGroupFormData = z.infer<typeof createGroupSchema>;
+
+// Sub-component for each group card that loads its own fees
+function GroupCard({
+  group,
+  classNames,
+  activeYearId,
+  isAdmin,
+  onConfigure,
+}: {
+  group: ClassGroup;
+  classNames: string[];
+  activeYearId: string;
+  isAdmin: boolean;
+  onConfigure: (group: ClassGroup, fees: FeesResponse | null) => void;
+}) {
+  const { formatAmount } = useCurrency();
+  const { data: feesData, isLoading: feesLoading } = useFees(group.id, activeYearId);
+
+  const versements = feesData?.versements ?? [];
+  const bookFee = feesData?.bookFee ?? '0';
+  const bookFeeNum = parseFloat(bookFee) || 0;
+  const total = versements.reduce((s, v) => s + (parseFloat(v.amount) || 0), 0);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+              <Layers className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-semibold">{group.name}</CardTitle>
+              {classNames.length > 0 && (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <School className="h-3 w-3 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">
+                    {classNames.join(', ')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onConfigure(group, feesData ?? null)}
+            >
+              <Settings className="mr-2 h-3.5 w-3.5" />
+              Configurer
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {feesLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-24 rounded-lg" />
+            ))}
+          </div>
+        ) : versements.length === 0 && bookFeeNum === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            Aucun frais configuré pour cette année.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {versements.map((v) => (
+              <div key={v.id} className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">{v.name}</p>
+                <p className="text-lg font-semibold mt-0.5">{formatAmount(v.amount)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Échéance : {new Date(v.dueDate).toLocaleDateString('fr-FR')}
+                </p>
+              </div>
+            ))}
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <p className="text-xs text-muted-foreground">Frais de livres</p>
+              <p className="text-lg font-semibold mt-0.5">{formatAmount(bookFee)}</p>
+              <Separator className="my-2" />
+              <p className="text-xs text-muted-foreground">Total annuel</p>
+              <p className="text-sm font-semibold">{formatAmount(total + bookFeeNum)}</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ClassGroupsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const { data: groupsData, isLoading: groupsLoading } = useClassGroups();
+  const { data: classesData, isLoading: classesLoading } = useClasses();
+  const { data: yearsData, isLoading: yearsLoading } = useSchoolYears();
+  const createClassGroup = useCreateClassGroup();
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [configureGroup, setConfigureGroup] = useState<ClassGroup | null>(null);
+  const [configureFees, setConfigureFees] = useState<FeesResponse | null>(null);
+
+  const groups = groupsData?.data ?? [];
+  const classes = classesData?.data ?? [];
+  const years = yearsData?.data ?? [];
+  const activeYear = years.find((y) => y.isActive);
+
+  // Map classGroupId -> list of class names
+  const classNamesByGroup = new Map<string, string[]>();
+  classes.forEach((cls) => {
+    const existing = classNamesByGroup.get(cls.classGroupId) ?? [];
+    existing.push(cls.name);
+    classNamesByGroup.set(cls.classGroupId, existing);
+  });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<CreateGroupFormData>({
+    resolver: zodResolver(createGroupSchema),
+    defaultValues: { name: '' },
+  });
+
+  async function onCreateSubmit(data: CreateGroupFormData) {
+    try {
+      await createClassGroup.mutateAsync(data);
+      reset();
+      setCreateOpen(false);
+    } catch {
+      // Error toast handled by hook
+    }
+  }
+
+  function handleConfigure(group: ClassGroup, fees: FeesResponse | null) {
+    setConfigureGroup(group);
+    setConfigureFees(fees);
+  }
+
+  const isLoading = groupsLoading || classesLoading || yearsLoading;
+
+  if (isLoading) {
+    return (
+      <>
+        <PageHeader
+          title="Groupes de classes"
+          description="Configuration des groupes, versements et frais par année scolaire."
+        />
+        <div className="space-y-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-lg" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {[1, 2, 3, 4].map((j) => (
+                    <Skeleton key={j} className="h-24 rounded-lg" />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -52,66 +214,86 @@ export default function ClassGroupsPage() {
         description="Configuration des groupes, versements et frais par année scolaire."
       >
         {isAdmin && (
-          <Button size="sm">
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nouveau groupe
           </Button>
         )}
       </PageHeader>
 
-      <div className="space-y-6">
-        {mockGroups.map((group) => {
-          const total = group.versements.reduce((s, v) => s + parseInt(v.amount.replace(/\D/g, '')), 0);
-          return (
-            <Card key={group.id}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                      <Layers className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base font-semibold">{group.name}</CardTitle>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <School className="h-3 w-3 text-muted-foreground" />
-                        <p className="text-xs text-muted-foreground">
-                          {group.classes.join(', ')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  {isAdmin && (
-                    <Button variant="outline" size="sm">
-                      <Settings className="mr-2 h-3.5 w-3.5" />
-                      Configurer
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {group.versements.map((v) => (
-                    <div key={v.number} className="rounded-lg border p-3">
-                      <p className="text-xs text-muted-foreground">{v.name}</p>
-                      <p className="text-lg font-semibold mt-0.5">{v.amount}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Échéance : {v.dueDate}</p>
-                    </div>
-                  ))}
-                  <div className="rounded-lg border p-3 bg-muted/30">
-                    <p className="text-xs text-muted-foreground">Frais de livres</p>
-                    <p className="text-lg font-semibold mt-0.5">{group.bookFee}</p>
-                    <Separator className="my-2" />
-                    <p className="text-xs text-muted-foreground">Total annuel</p>
-                    <p className="text-sm font-semibold">
-                      {(total + parseInt(group.bookFee.replace(/\D/g, ''))).toLocaleString('fr-FR')} F
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {groups.length === 0 ? (
+        <EmptyState
+          icon={Layers}
+          title="Aucun groupe de classes"
+          description="Créez un groupe pour organiser vos classes et configurer les frais."
+        >
+          {isAdmin && (
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nouveau groupe
+            </Button>
+          )}
+        </EmptyState>
+      ) : (
+        <div className="space-y-6">
+          {groups.map((group) => (
+            <GroupCard
+              key={group.id}
+              group={group}
+              classNames={classNamesByGroup.get(group.id) ?? []}
+              activeYearId={activeYear?.id ?? ''}
+              isAdmin={!!isAdmin}
+              onConfigure={handleConfigure}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Create Group Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nouveau groupe de classes</DialogTitle>
+            <DialogDescription>
+              Créez un groupe pour organiser vos classes.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onCreateSubmit)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="groupName">Nom du groupe *</Label>
+              <Input id="groupName" placeholder="ex: Préscolaire, Primaire" {...register('name')} />
+              {errors.name && (
+                <p className="text-xs text-destructive">{errors.name.message}</p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Créer
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Configure Fees Dialog */}
+      {configureGroup && activeYear && (
+        <ConfigureFeesDialog
+          open={!!configureGroup}
+          onOpenChange={(open) => {
+            if (!open) {
+              setConfigureGroup(null);
+              setConfigureFees(null);
+            }
+          }}
+          classGroupId={configureGroup.id}
+          schoolYearId={activeYear.id}
+          existingFees={configureFees}
+        />
+      )}
     </>
   );
 }

@@ -7,15 +7,20 @@ const { classes } = require('../../db/schema/classes');
 const { schoolYears } = require('../../db/schema/schoolYears');
 const { AppError } = require('../../lib/apiError');
 
+function buildNameConditions(name) {
+  // Split by whitespace and create AND conditions where each word matches firstName or lastName
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return words.map((word) => {
+    const pattern = `%${word}%`;
+    return or(ilike(students.firstName, pattern), ilike(students.lastName, pattern));
+  });
+}
+
 async function listStudents({ name, status, classId, page, limit }) {
   const conditions = [];
 
   if (name) {
-    const pattern = `%${name}%`;
-    conditions.push(or(
-      ilike(students.firstName, pattern),
-      ilike(students.lastName, pattern)
-    ));
+    conditions.push(...buildNameConditions(name));
   }
 
   if (status) {
@@ -24,28 +29,33 @@ async function listStudents({ name, status, classId, page, limit }) {
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
+  const selectFields = {
+    id: students.id,
+    nie: students.nie,
+    firstName: students.firstName,
+    lastName: students.lastName,
+    gender: students.gender,
+    birthDate: students.birthDate,
+    address: students.address,
+    scholarshipRecipient: students.scholarshipRecipient,
+    status: students.status,
+    profilePhotoUrl: students.profilePhotoUrl,
+    createdAt: students.createdAt,
+    updatedAt: students.updatedAt,
+    className: classes.name,
+    gradeLevel: classes.gradeLevel,
+  };
+
   let query;
   let countQuery;
 
   if (classId) {
-    // Join with enrollments to filter by class in active school year
+    // Filter by specific class in active school year
     query = db
-      .select({
-        id: students.id,
-        nie: students.nie,
-        firstName: students.firstName,
-        lastName: students.lastName,
-        gender: students.gender,
-        birthDate: students.birthDate,
-        address: students.address,
-        scholarshipRecipient: students.scholarshipRecipient,
-        status: students.status,
-        profilePhotoUrl: students.profilePhotoUrl,
-        createdAt: students.createdAt,
-        updatedAt: students.updatedAt,
-      })
+      .select(selectFields)
       .from(students)
       .innerJoin(enrollments, eq(enrollments.studentId, students.id))
+      .innerJoin(classes, eq(enrollments.classId, classes.id))
       .innerJoin(schoolYears, and(
         eq(enrollments.schoolYearId, schoolYears.id),
         eq(schoolYears.isActive, true)
@@ -65,9 +75,16 @@ async function listStudents({ name, status, classId, page, limit }) {
       ))
       .where(and(eq(enrollments.classId, classId), where));
   } else {
+    // LEFT JOIN to get class info for all students (even unenrolled ones)
     query = db
-      .select()
+      .select(selectFields)
       .from(students)
+      .leftJoin(enrollments, eq(enrollments.studentId, students.id))
+      .leftJoin(classes, eq(enrollments.classId, classes.id))
+      .leftJoin(schoolYears, and(
+        eq(enrollments.schoolYearId, schoolYears.id),
+        eq(schoolYears.isActive, true)
+      ))
       .where(where)
       .limit(limit)
       .offset((page - 1) * limit)

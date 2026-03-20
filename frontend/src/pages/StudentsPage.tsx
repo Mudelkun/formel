@@ -1,8 +1,16 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/auth';
+import { useStudents, useClasses } from '@/hooks/use-students';
 import PageHeader from '@/components/PageHeader';
+import Pagination from '@/components/Pagination';
+import StudentStatusBadge from '@/components/students/StudentStatusBadge';
+import EmptyState from '@/components/EmptyState';
+import CreateStudentDialog from '@/components/students/CreateStudentDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -11,27 +19,46 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Plus, Search, Filter } from 'lucide-react';
-import { useAuth } from '@/context/auth';
-
-const mockStudents = [
-  { id: '1', nie: 'NIE-001', name: 'Amadou Diallo', gender: 'M', class: 'CP', status: 'active' },
-  { id: '2', nie: 'NIE-002', name: 'Fatou Sow', gender: 'F', class: '6ème', status: 'active' },
-  { id: '3', nie: 'NIE-003', name: 'Moussa Ba', gender: 'M', class: 'CM2', status: 'active' },
-  { id: '4', nie: 'NIE-004', name: 'Aïssatou Ndiaye', gender: 'F', class: 'MS', status: 'active' },
-  { id: '5', nie: 'NIE-005', name: 'Ousmane Fall', gender: 'M', class: '3ème', status: 'inactive' },
-];
+import { Plus, Search, GraduationCap } from 'lucide-react';
 
 export default function StudentsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const canCreate = user?.role === 'admin' || user?.role === 'secretary';
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('');
+  const [page, setPage] = useState(1);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset page on filter change
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, classFilter]);
+
+  const { data, isLoading } = useStudents({
+    name: debouncedSearch || undefined,
+    status: statusFilter || undefined,
+    classId: classFilter || undefined,
+    page,
+    limit: 20,
+  });
+
+  const { data: classesData } = useClasses();
+  const classes = classesData?.data ?? [];
+  const students = data?.data ?? [];
+  const pagination = data?.pagination;
 
   return (
     <>
@@ -40,7 +67,7 @@ export default function StudentsPage() {
         description="Gérez les dossiers de tous les élèves inscrits."
       >
         {canCreate && (
-          <Button size="sm">
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nouvel élève
           </Button>
@@ -53,30 +80,34 @@ export default function StudentsPage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Rechercher un élève..." className="pl-9" />
+              <Input
+                placeholder="Rechercher un élève..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
-            <Select>
-              <SelectTrigger className="w-full sm:w-40">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Classe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes les classes</SelectItem>
-                <SelectItem value="cp">CP</SelectItem>
-                <SelectItem value="cm2">CM2</SelectItem>
-                <SelectItem value="6eme">6ème</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="inactive">Inactif</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+            >
+              <option value="">Toutes les classes</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <select
+              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">Tous les statuts</option>
+              <option value="active">Inscrit</option>
+              <option value="transfer">Transféré</option>
+              <option value="expelled">Expulsé</option>
+              <option value="graduated">Diplômé</option>
+            </select>
           </div>
         </CardContent>
       </Card>
@@ -84,42 +115,87 @@ export default function StudentsPage() {
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>NIE</TableHead>
-                <TableHead>Nom complet</TableHead>
-                <TableHead className="hidden sm:table-cell">Genre</TableHead>
-                <TableHead className="hidden md:table-cell">Classe</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mockStudents.map((student) => (
-                <TableRow key={student.id} className="cursor-pointer hover:bg-muted/50">
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {student.nie}
-                  </TableCell>
-                  <TableCell className="font-medium">{student.name}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{student.gender}</TableCell>
-                  <TableCell className="hidden md:table-cell">{student.class}</TableCell>
-                  <TableCell>
-                    <Badge variant={student.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                      {student.status === 'active' ? 'Actif' : 'Inactif'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" className="text-xs">
-                      Voir
-                    </Button>
-                  </TableCell>
-                </TableRow>
+          {isLoading ? (
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          ) : students.length === 0 ? (
+            <EmptyState
+              icon={GraduationCap}
+              title="Aucun élève trouvé"
+              description={debouncedSearch || statusFilter || classFilter
+                ? 'Essayez de modifier vos filtres.'
+                : 'Commencez par ajouter votre premier élève.'
+              }
+            >
+              {canCreate && !debouncedSearch && !statusFilter && !classFilter && (
+                <Button size="sm" onClick={() => setCreateOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nouvel élève
+                </Button>
+              )}
+            </EmptyState>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>NIE</TableHead>
+                    <TableHead>Nom complet</TableHead>
+                    <TableHead className="hidden md:table-cell">Classe</TableHead>
+                    <TableHead className="hidden sm:table-cell">Genre</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="w-12" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.map((student) => (
+                    <TableRow
+                      key={student.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/students/${student.id}`)}
+                    >
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {student.nie || '—'}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {student.lastName} {student.firstName}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground">
+                        {student.className || '—'}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {student.gender === 'male' ? 'M' : 'F'}
+                      </TableCell>
+                      <TableCell>
+                        <StudentStatusBadge status={student.status} />
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" className="text-xs">
+                          Voir
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {pagination && (
+                <Pagination
+                  page={pagination.page}
+                  totalPages={pagination.totalPages}
+                  onPageChange={setPage}
+                />
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
+
+      {canCreate && (
+        <CreateStudentDialog open={createOpen} onOpenChange={setCreateOpen} />
+      )}
     </>
   );
 }

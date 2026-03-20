@@ -4,6 +4,7 @@ const listAuditLogsSchema = z.object({
   query: z.object({
     tableName: z.string().optional(),
     userId: z.string().uuid().optional(),
+    action: z.string().optional(),
     startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     page: z.coerce.number().int().positive().optional().default(1),

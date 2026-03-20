@@ -12,10 +12,12 @@ const schoolYearsRouter = require('./modules/school-years/schoolYears.routes');
 const classGroupsRouter = require('./modules/class-groups/classGroups.routes');
 const classesRouter = require('./modules/classes/classes.routes');
 const enrollmentsRouter = require('./modules/enrollments/enrollments.routes');
+const scholarshipsRouter = require('./modules/scholarships/scholarships.routes');
 const paymentsRouter = require('./modules/payments/payments.routes');
 const versementsRouter = require('./modules/versements/versements.routes');
 const financeRouter = require('./modules/finance/finance.routes');
 const auditLogsRouter = require('./modules/audit-logs/auditLogs.routes');
+const messagingRouter = require('./modules/messaging/messaging.routes');
 
 const app = express();
 
@@ -32,10 +34,12 @@ app.use('/api/school-years', schoolYearsRouter);
 app.use('/api/class-groups', classGroupsRouter);
 app.use('/api/classes', classesRouter);
 app.use('/api/enrollments', enrollmentsRouter);
+app.use('/api/scholarships', scholarshipsRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/versements', versementsRouter);
 app.use('/api/finance', financeRouter);
 app.use('/api/audit-logs', auditLogsRouter);
+app.use('/api/messages', messagingRouter);
 
 app.use(errorHandler);
 

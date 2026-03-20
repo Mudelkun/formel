@@ -33,7 +33,7 @@ export const navigation: NavGroup[] = [
         label: 'Tableau de bord',
         href: '/',
         icon: LayoutDashboard,
-        roles: ['admin', 'secretary', 'teacher', 'accountant'],
+        roles: ['admin', 'secretary', 'accountant'],
       },
     ],
   },

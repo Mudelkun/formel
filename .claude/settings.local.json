@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone:*)",
+      "Bash(find /c/Users/peril/Documents/formel -name *.ts -o -name *.tsx -o -name *.js -o -name *.jsx)",
+      "Bash(find /c/Users/peril/Documents/formel -name *.env* -o -name *.config.* -o -name Dockerfile -o -name docker-compose*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const z = require\\(''zod''\\); console.log\\(Object.keys\\(z\\).slice\\(0,20\\)\\)\")",
+      "Bash(node -e \"const { pgTable } = require\\(''drizzle-orm/pg-core''\\); console.log\\(typeof pgTable\\)\")",
+      "Bash(node -e \"const z = require\\(''zod''\\); console.log\\(typeof z.z.string, typeof z.z.object, typeof z.z.enum, typeof z.z.coerce\\)\")",
+      "Bash(node -e \"const { z } = require\\(''zod''\\); console.log\\(typeof z.string, typeof z.object, typeof z.enum\\)\")",
+      "Bash(node -e \"const schema = require\\(''./src/db/schema''\\); console.log\\(Object.keys\\(schema\\)\\)\")",
+      "Bash(npx jest:*)",
+      "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(64\\).toString\\(''hex''\\)\\)\")",
+      "Read(//c/Users/peril/.claude/plans/**)",
+      "Bash(node tests/api-test/api-test.js)",
+      "Bash(curl -s http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"marie@formel.school\"\",\"\"password\"\":\"\"secretary123\"\"}')",
+      "Bash(printf '\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n\\\\n')",
+      "Bash(node -e \":*)",
+      "Bash(npm create:*)",
+      "Bash(npx create-vite@latest frontend-temp --template react-ts)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npx shadcn@latest add card input label)",
+      "Bash(npx tsc:*)",
+      "Bash(curl -s http://localhost:3000/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"\"\"\"email\"\"\"\":\"\"\"\"test\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"test\"\"\"\"}')",
+      "Bash(curl -s http://localhost:3000/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"\"\"\"email\"\"\"\":\"\"\"\"admin@formel.school\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"admin123\"\"\"\"}')",
+      "Bash(curl -s http://localhost:5173/login)",
+      "Bash(npx shadcn@latest add separator avatar tooltip sheet dropdown-menu badge skeleton table dialog select textarea)",
+      "Bash(node -e \"const fs=require\\(''fs''\\); const content=fs.readFileSync\\(''src/modules/enrollments/enrollments.routes.js'',''utf8''\\); console.log\\(content.includes\\(''DEBUG body after multer''\\)\\);\")",
+      "Bash(tasklist)",
+      "Bash(wmic process:*)",
+      "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Select-Object Id, Path | Format-Table -AutoSize\")",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object OwningProcess\")",
+      "Bash(taskkill //PID 19768 //F)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\peril\\.claude\\plans"
+    ]
+  }
+}

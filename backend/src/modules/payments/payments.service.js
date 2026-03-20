@@ -1,7 +1,12 @@
-const { eq } = require('drizzle-orm');
+const { eq, and, ilike, or, count, desc } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { payments } = require('../../db/schema/payments');
+const { paymentDocuments } = require('../../db/schema/paymentDocuments');
 const { enrollments } = require('../../db/schema/enrollments');
+const { students } = require('../../db/schema/students');
+const { classes } = require('../../db/schema/classes');
+const { schoolYears } = require('../../db/schema/schoolYears');
+const { uploadFile } = require('../../lib/uploadService');
 const { AppError } = require('../../lib/apiError');
 const { logAudit } = require('../../lib/auditLogger');
 
@@ -28,24 +33,60 @@ async function listPayments(enrollmentId) {
   return data;
 }
 
-async function createPayment(enrollmentId, data, role, userId) {
+async function createPayment(enrollmentId, data, file, role, userId) {
   await verifyEnrollmentExists(enrollmentId);
+
+  if (!file) {
+    throw new AppError(400, 'Un document justificatif est requis');
+  }
 
   const status = role === 'admin' ? 'completed' : 'pending';
 
-  const [created] = await db
-    .insert(payments)
-    .values({ ...data, enrollmentId, status, updatedAt: new Date() })
-    .returning();
+  const result = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(payments)
+      .values({ ...data, enrollmentId, status, updatedAt: new Date() })
+      .returning();
 
-  logAudit(userId, 'create', 'payments', created.id, null, created);
-  return created;
+    const key = `payments/${created.id}/documents/${Date.now()}-${file.originalname}`;
+    const url = await uploadFile(file.buffer, key, file.mimetype);
+
+    const [doc] = await tx
+      .insert(paymentDocuments)
+      .values({ paymentId: created.id, documentUrl: url, updatedAt: new Date() })
+      .returning();
+
+    logAudit(userId, 'create', 'payments', created.id, null, created);
+    logAudit(userId, 'create', 'payment_documents', doc.id, null, doc);
+
+    return created;
+  });
+
+  return result;
 }
 
 async function getPaymentById(id) {
   const [payment] = await db
-    .select()
+    .select({
+      id: payments.id,
+      amount: payments.amount,
+      paymentDate: payments.paymentDate,
+      paymentMethod: payments.paymentMethod,
+      isBookPayment: payments.isBookPayment,
+      status: payments.status,
+      notes: payments.notes,
+      enrollmentId: payments.enrollmentId,
+      createdAt: payments.createdAt,
+      updatedAt: payments.updatedAt,
+      studentId: students.id,
+      studentFirstName: students.firstName,
+      studentLastName: students.lastName,
+      className: classes.name,
+    })
     .from(payments)
+    .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
+    .innerJoin(students, eq(enrollments.studentId, students.id))
+    .innerJoin(classes, eq(enrollments.classId, classes.id))
     .where(eq(payments.id, id));
 
   if (!payment) {
@@ -79,4 +120,67 @@ async function updatePayment(id, data, role, userId) {
   return updated;
 }
 
-module.exports = { listPayments, createPayment, getPaymentById, updatePayment };
+async function listAllPayments({ status, search, page, limit }) {
+  const conditions = [];
+
+  // Only show payments from active school year
+  conditions.push(eq(schoolYears.isActive, true));
+
+  if (status) {
+    conditions.push(eq(payments.status, status));
+  }
+
+  if (search) {
+    const words = search.trim().split(/\s+/).filter(Boolean);
+    for (const word of words) {
+      const pattern = `%${word}%`;
+      conditions.push(or(ilike(students.firstName, pattern), ilike(students.lastName, pattern)));
+    }
+  }
+
+  const where = and(...conditions);
+
+  const selectFields = {
+    id: payments.id,
+    amount: payments.amount,
+    paymentDate: payments.paymentDate,
+    paymentMethod: payments.paymentMethod,
+    isBookPayment: payments.isBookPayment,
+    status: payments.status,
+    notes: payments.notes,
+    enrollmentId: payments.enrollmentId,
+    createdAt: payments.createdAt,
+    studentId: students.id,
+    studentFirstName: students.firstName,
+    studentLastName: students.lastName,
+    className: classes.name,
+    schoolYear: schoolYears.year,
+  };
+
+  const [data, [{ total: totalCount }]] = await Promise.all([
+    db.select(selectFields)
+      .from(payments)
+      .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .innerJoin(classes, eq(enrollments.classId, classes.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .where(where)
+      .limit(limit)
+      .offset((page - 1) * limit)
+      .orderBy(desc(payments.createdAt)),
+    db.select({ total: count() })
+      .from(payments)
+      .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .innerJoin(classes, eq(enrollments.classId, classes.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .where(where),
+  ]);
+
+  return {
+    data,
+    pagination: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) },
+  };
+}
+
+module.exports = { listPayments, listAllPayments, createPayment, getPaymentById, updatePayment };
