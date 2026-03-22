@@ -183,3 +183,116 @@ Verify that all the math and calculations are correct in the student page
 The "élève boursier" dialog in the student creation modal must be identical to the one used in the student page.
 
 This should be implemented as a reusable component.
+
+
+# Payments
+
+## Payment Creation Modal
+
+- **Auto-Confirm for Admin-Recorded Payments**: Do not automatically confirm payments recorded by admin. Instead, add an optional "Auto-confirm" checkbox. If unchecked, payments remain pending and can be confirmed manually later.
+
+- **Advanced Student Search**: Implement search functionality in the student selection field modal when recording a payment. When the institution has many students, filtering should support multiple search criteria to make finding students easier.
+
+- **Payment Method**: Add "Dépôt bancaire" as an available payment method option.
+
+- **Document Upload & Preview**: 
+  - Only allow PDF documents to be uploaded
+  - Display a preview of the uploaded document
+  - Always confirm the action before deleting a document
+
+## Payment Status Management
+
+- **Edit Payment Status**: Users should always be able to edit a payment's status at any time to correct mistakes or errors.
+
+## Payments History Page
+
+- **Advanced Filtering & Search**: Enable advanced filtering and searching across all payment history. Support filtering by:
+  - Individual class
+  - Group of classes
+  - Other relevant criteria
+
+- **Dashboard Components**: Ensure all dashboard components function correctly, including:
+  - "Taux de recouvrement" (currently not working)
+  - Any other analytics displays
+
+## Known Issues & Bugs
+
+- **Rejected Payment Status Bug**: In the student payment history, rejected payments incorrectly remain with an "En attente" (pending) status. Rejected payments should display a "Rejeté" (rejected) status in French.
+
+--
+
+# Editable Records After Creation
+
+Several entities should remain fully editable after creation to accommodate institutional changes:
+
+- **Class Group Name**: Allow editing of class group names (not just other properties)
+- **Class Details**: Enable editing of:
+  - Niveau (grade level)
+  - Name
+  - Class group assignment (move a class to a different group)
+
+---
+
+# Student Status Management
+
+**Recommended Implementation based on your system:**
+
+Since students are inherently linked to enrollments, and students cannot exist without an active enrollment, student status should be managed through the **enrollment record**, not the student master record itself.
+
+## Status Definition & Lifecycle
+
+**Status field location**: `enrollments.status` (not on the student record)
+
+**Available statuses:**
+
+1. **Inscrit (Enrolled)** — Default status
+   - Student is actively enrolled in the current school year
+   - Associated with payment obligations and class participation
+
+2. **Transféré (Transferred)** — Status when student leaves the institution
+   - Student has transferred to another school or institution
+   - Records are retained for historical/financial tracking
+   - No longer active for current year
+
+3. **Inactif (Inactive)** — Status for students no longer attending
+   - Student dropped out or left without transferring
+   - Records retained for audit and financial history
+   - No active payment obligations for this status
+
+**note**: Make sure to take acount for that when calculating the total of student enrolled, the total of revenue needeed to be collected and everything that could potentially display wrong data to the user.
+
+## Key Design Principles
+
+- A student can have **different statuses across different school years** (enrolled in 2024-2025, transferred in 2025-2026)
+- When changing school years, only display students with "Inscrit" status
+- When filtering/viewing a specific school year, status determines visibility and payment obligations
+- Status changes should be auditable (track who changed it and when)
+
+
+---
+
+# Financial Dashboard (Aperçu Financier)
+
+## Data Display Improvements
+
+- **Scholarship Total**: Display the total monetary amount of scholarships given instead of "Taux global" (global rate)
+  - Show: Sum of all scholarship amounts awarded
+  - Include breakdown by scholarship type if applicable
+
+## Quality Assurance
+
+- Verify all dashboard components function correctly with no calculation errors
+- Test all calculations with edge cases (partial scholarships, multiple scholarships per student, etc.)
+
+---
+
+# Payment Tracking & Alerts
+
+- **Late Payment Flag**: Flag students who have missing or unpaid versement amounts by their due date
+  - Display on the student detail page
+  - Use visual indicators (red flag, warning icon, etc.) to highlight overdue payments
+
+- **Filter by Overdue Balance**: Add a filter option on the students list page to display only students with overdue/unpaid balance
+  - Show students with outstanding versement payments past their due dates
+  - Quick-access feature to identify students requiring follow-up or payment collection
+

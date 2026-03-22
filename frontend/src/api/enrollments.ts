@@ -1,11 +1,14 @@
 import api from './client';
 import type { CreateEnrollmentInput, CursorPaginatedResponse } from '@/types/student';
 
+export type EnrollmentStatus = 'enrolled' | 'transferred' | 'inactive' | 'graduated';
+
 export interface Enrollment {
   id: string;
   studentId: string;
   classId: string;
   schoolYearId: string;
+  status: EnrollmentStatus;
   createdAt: string;
   updatedAt: string | null;
   studentFirstName?: string;
@@ -83,5 +86,12 @@ export interface Payment {
 
 export async function listPayments(enrollmentId: string): Promise<{ data: Payment[] }> {
   const { data } = await api.get(`/enrollments/${enrollmentId}/payments`);
+  return data;
+}
+
+// ── Enrollment Status ─────────────────────────────────────
+
+export async function updateEnrollmentStatus(enrollmentId: string, status: EnrollmentStatus): Promise<Enrollment> {
+  const { data } = await api.patch(`/enrollments/${enrollmentId}`, { status });
   return data;
 }

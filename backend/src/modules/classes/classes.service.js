@@ -1,13 +1,39 @@
-const { eq, count } = require('drizzle-orm');
+const { eq, count, and, sql } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { classes } = require('../../db/schema/classes');
 const { classGroups } = require('../../db/schema/classGroups');
+const { enrollments } = require('../../db/schema/enrollments');
+const { schoolYears } = require('../../db/schema/schoolYears');
 const { AppError } = require('../../lib/apiError');
 const { logAudit } = require('../../lib/auditLogger');
 
 async function listClasses({ page, limit }) {
+  // Get active school year for student count
+  const [activeYear] = await db
+    .select({ id: schoolYears.id })
+    .from(schoolYears)
+    .where(eq(schoolYears.isActive, true));
+
   const [data, [{ total: totalCount }]] = await Promise.all([
-    db.select().from(classes)
+    db.select({
+      id: classes.id,
+      name: classes.name,
+      gradeLevel: classes.gradeLevel,
+      classGroupId: classes.classGroupId,
+      createdAt: classes.createdAt,
+      updatedAt: classes.updatedAt,
+      studentCount: count(enrollments.id),
+    })
+      .from(classes)
+      .leftJoin(
+        enrollments,
+        and(
+          eq(enrollments.classId, classes.id),
+          activeYear ? eq(enrollments.schoolYearId, activeYear.id) : sql`false`,
+          eq(enrollments.status, 'enrolled'),
+        ),
+      )
+      .groupBy(classes.id)
       .limit(limit).offset((page - 1) * limit)
       .orderBy(classes.gradeLevel),
     db.select({ total: count() }).from(classes),

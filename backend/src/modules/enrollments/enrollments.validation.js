@@ -21,8 +21,16 @@ const enrollmentIdParamSchema = z.object({
   params: z.object({ id: z.string().uuid() }),
 });
 
+const updateEnrollmentSchema = z.object({
+  params: z.object({ id: z.string().uuid() }),
+  body: z.object({
+    status: z.enum(['enrolled', 'transferred', 'inactive', 'graduated']),
+  }),
+});
+
 module.exports = {
   listEnrollmentsSchema,
   createEnrollmentSchema,
   enrollmentIdParamSchema,
+  updateEnrollmentSchema,
 };

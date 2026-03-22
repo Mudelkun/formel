@@ -22,8 +22,8 @@ async function getSummary({ classId, classGroupId }) {
     throw new AppError(404, 'No active school year');
   }
 
-  // Build enrollment conditions
-  const conditions = [eq(enrollments.schoolYearId, activeYear.id)];
+  // Build enrollment conditions — only count enrolled students
+  const conditions = [eq(enrollments.schoolYearId, activeYear.id), eq(enrollments.status, 'enrolled')];
   if (classId) conditions.push(eq(enrollments.classId, classId));
   if (classGroupId) conditions.push(eq(classes.classGroupId, classGroupId));
 
@@ -81,11 +81,13 @@ async function getSummary({ classId, classGroupId }) {
     scholarshipMap[s.enrollmentId].push(s);
   }
 
-  // Compute total expected (after scholarships)
+  // Compute total expected (after scholarships) and total scholarship amount
   let totalExpected = 0;
+  let totalScholarships = 0;
   for (const e of enrollmentData) {
     const { versementsTotal, bookFee, total } = await getGroupTuition(e.classGroupId);
     const discount = computeTotalDiscount(scholarshipMap[e.enrollmentId] || [], versementsTotal, bookFee);
+    totalScholarships += discount;
     totalExpected += total - discount;
   }
 
@@ -117,6 +119,7 @@ async function getSummary({ classId, classGroupId }) {
     total_collected: Math.round(totalCollected * 100) / 100,
     total_pending: Math.round(totalPending * 100) / 100,
     total_remaining: Math.round((totalExpected - totalCollected) * 100) / 100,
+    total_scholarships: Math.round(totalScholarships * 100) / 100,
     student_count: studentCount,
   };
 }
@@ -152,7 +155,7 @@ async function getVersementFinance(versementId) {
 
   const versementsTotal = allVersements.reduce((s, v) => s + Number(v.amount), 0);
 
-  // Get all enrollments for this school year where class belongs to this class group
+  // Get all enrolled students for this school year where class belongs to this class group
   const enrollmentData = await db
     .select({
       enrollmentId: enrollments.id,
@@ -162,6 +165,7 @@ async function getVersementFinance(versementId) {
     .where(and(
       eq(enrollments.schoolYearId, versement.schoolYearId),
       eq(classes.classGroupId, versement.classGroupId),
+      eq(enrollments.status, 'enrolled'),
     ));
 
   const studentCount = enrollmentData.length;
@@ -274,10 +278,10 @@ async function getDashboardStats() {
     recentPayments,
     upcomingDueDates,
   ] = await Promise.all([
-    // Total students enrolled in active year
+    // Total students enrolled in active year (only 'enrolled' status)
     db.select({ studentCount: count() })
       .from(enrollments)
-      .where(eq(enrollments.schoolYearId, activeYear.id)),
+      .where(and(eq(enrollments.schoolYearId, activeYear.id), eq(enrollments.status, 'enrolled'))),
 
     // Total classes
     db.select({ classCount: count() })

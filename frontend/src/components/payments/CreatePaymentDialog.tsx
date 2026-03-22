@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useStudents, useStudent } from '@/hooks/use-students';
+import { useAuth } from '@/context/auth';
+import { useStudents, useStudent, useClasses } from '@/hooks/use-students';
 import { useCreatePayment } from '@/hooks/use-payments';
 import {
   Dialog,
@@ -24,6 +25,7 @@ const paymentSchema = z.object({
   paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format AAAA-MM-JJ requis'),
   paymentMethod: z.string().min(1, 'Méthode requise'),
   isBookPayment: z.boolean().optional().default(false),
+  autoConfirm: z.boolean().optional().default(false),
   notes: z.string().optional().or(z.literal('')),
 });
 
@@ -35,12 +37,15 @@ interface Props {
 }
 
 export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const createPayment = useCreatePayment();
 
   // Step management
   const [step, setStep] = useState<1 | 2>(1);
   const [studentSearch, setStudentSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [classFilter, setClassFilter] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
@@ -52,8 +57,12 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
     return () => clearTimeout(timer);
   }, [studentSearch]);
 
+  const { data: classesData } = useClasses();
+  const classList = classesData?.data ?? [];
+
   const { data: studentsData, isLoading: searchLoading } = useStudents({
     name: debouncedSearch || undefined,
+    classId: classFilter || undefined,
     limit: 10,
   });
   const students = studentsData?.data ?? [];
@@ -73,6 +82,7 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
       paymentDate: new Date().toISOString().slice(0, 10),
       paymentMethod: 'cash',
       isBookPayment: false,
+      autoConfirm: false,
       notes: '',
     },
   });
@@ -81,6 +91,7 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
     setStep(1);
     setStudentSearch('');
     setDebouncedSearch('');
+    setClassFilter('');
     setSelectedStudentId(null);
     setProofFile(null);
     setFileError('');
@@ -109,6 +120,7 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
         paymentDate: data.paymentDate,
         paymentMethod: data.paymentMethod,
         isBookPayment: data.isBookPayment,
+        autoConfirm: data.autoConfirm,
         notes: data.notes || undefined,
       });
       handleClose();
@@ -131,15 +143,27 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
 
         {step === 1 ? (
           <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher un élève par nom..."
-                className="pl-9"
-                value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-                autoFocus
-              />
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher par nom ou NIE..."
+                  className="pl-9"
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <select
+                className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                value={classFilter}
+                onChange={(e) => setClassFilter(e.target.value)}
+              >
+                <option value="">Toutes les classes</option>
+                {classList.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
 
             <div className="max-h-64 overflow-y-auto space-y-1">
@@ -149,7 +173,7 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
                 </div>
               ) : students.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  {debouncedSearch ? 'Aucun élève trouvé.' : 'Tapez un nom pour rechercher.'}
+                  {debouncedSearch || classFilter ? 'Aucun élève trouvé.' : 'Tapez un nom pour rechercher.'}
                 </p>
               ) : (
                 students.map((s) => (
@@ -243,6 +267,7 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
                 <option value="transfer">Virement</option>
                 <option value="check">Chèque</option>
                 <option value="mobile">Mobile</option>
+                <option value="deposit">Dépôt bancaire</option>
               </select>
               {errors.paymentMethod && (
                 <p className="text-xs text-destructive">{errors.paymentMethod.message}</p>
@@ -261,23 +286,44 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
               </Label>
             </div>
 
+            {isAdmin && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="autoConfirm"
+                  {...register('autoConfirm')}
+                  className="h-4 w-4 rounded border-input"
+                />
+                <Label htmlFor="autoConfirm" className="text-sm font-normal">
+                  Confirmer automatiquement
+                </Label>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label>Document justificatif *</Label>
               {proofFile ? (
-                <div className="flex items-center justify-between rounded-lg border p-2.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="text-sm truncate">{proofFile.name}</span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between rounded-lg border p-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="text-sm truncate">{proofFile.name}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 shrink-0"
+                      onClick={() => { setProofFile(null); setFileError(''); }}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 shrink-0"
-                    onClick={() => { setProofFile(null); setFileError(''); }}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
+                  <iframe
+                    src={URL.createObjectURL(proofFile)}
+                    title="Aperçu du document"
+                    className="w-full h-48 rounded-lg border"
+                  />
                 </div>
               ) : (
                 <button
@@ -293,7 +339,7 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
-                accept="image/*,.pdf"
+                accept=".pdf"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) { setProofFile(f); setFileError(''); }

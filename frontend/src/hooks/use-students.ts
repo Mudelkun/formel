@@ -17,9 +17,9 @@ import {
   downgradeStudent,
   type StudentFilters,
 } from '@/api/students';
-import { listClasses, createClass } from '@/api/classes';
+import { listClasses, createClass, updateClass } from '@/api/classes';
 import { listSchoolYears, createSchoolYear, activateSchoolYear, promoteStudents } from '@/api/school-years';
-import { createEnrollment, createScholarship, listScholarships, updateScholarship, deleteScholarship, listPayments, type CreateScholarshipInput, type Scholarship, type Payment } from '@/api/enrollments';
+import { createEnrollment, updateEnrollmentStatus, createScholarship, listScholarships, updateScholarship, deleteScholarship, listPayments, type CreateScholarshipInput, type Scholarship, type Payment, type EnrollmentStatus } from '@/api/enrollments';
 import type {
   CreateStudentInput,
   UpdateStudentInput,
@@ -224,6 +224,25 @@ export function useCreateEnrollment() {
   });
 }
 
+export function useUpdateEnrollmentStatus(studentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ enrollmentId, status }: { enrollmentId: string; status: EnrollmentStatus }) =>
+      updateEnrollmentStatus(enrollmentId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students', 'detail', studentId] });
+      queryClient.invalidateQueries({ queryKey: ['students', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['students', studentId, 'balance'] });
+      queryClient.invalidateQueries({ queryKey: ['finance'] });
+      queryClient.invalidateQueries({ queryKey: ['classes'] });
+      toast.success('Statut mis à jour');
+    },
+    onError: () => {
+      toast.error('Erreur lors de la mise à jour du statut');
+    },
+  });
+}
+
 // ── Promote / Downgrade ─────────────────────────────────
 
 export function usePromoteStudent(id: string) {
@@ -389,6 +408,21 @@ export function useCreateClass() {
     },
     onError: () => {
       toast.error('Erreur lors de la création de la classe');
+    },
+  });
+}
+
+export function useUpdateClass() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name?: string; gradeLevel?: number; classGroupId?: string }) =>
+      updateClass(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['classes'] });
+      toast.success('Classe mise à jour');
+    },
+    onError: () => {
+      toast.error('Erreur lors de la mise à jour de la classe');
     },
   });
 }

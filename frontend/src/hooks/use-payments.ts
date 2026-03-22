@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { toast } from 'sonner';
 import { listAllPayments, getPayment, updatePayment, createPaymentForEnrollment, listPaymentDocuments, uploadPaymentDocument, deletePaymentDocument } from '@/api/payments';
 
-export function usePayments(filters: { status?: string; search?: string; cursor?: string; limit?: number } = {}) {
+export function usePayments(filters: { status?: string; search?: string; classId?: string; classGroupId?: string; cursor?: string; limit?: number } = {}) {
   return useQuery({
     queryKey: ['payments', 'list', filters],
     queryFn: () => listAllPayments(filters),
@@ -21,7 +21,7 @@ export function usePayment(id: string) {
 export function useCreatePayment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ enrollmentId, file, ...input }: { enrollmentId: string; file: File; amount: string; paymentDate: string; paymentMethod?: string; isBookPayment?: boolean; notes?: string }) =>
+    mutationFn: ({ enrollmentId, file, ...input }: { enrollmentId: string; file: File; amount: string; paymentDate: string; paymentMethod?: string; isBookPayment?: boolean; autoConfirm?: boolean; notes?: string }) =>
       createPaymentForEnrollment(enrollmentId, input, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments'] });

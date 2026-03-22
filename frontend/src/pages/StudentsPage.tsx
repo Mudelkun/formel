@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Search, GraduationCap, Award, RefreshCw } from 'lucide-react';
+import { Plus, Search, GraduationCap, Award, RefreshCw, AlertTriangle } from 'lucide-react';
 
 const PAGE_SIZE = 20;
 
@@ -30,8 +30,9 @@ export default function StudentsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [enrollmentStatusFilter, setEnrollmentStatusFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
+  const [overdueFilter, setOverdueFilter] = useState(false);
   const [scholarshipFilter, setScholarshipFilter] = useState('');
   // Cursor stack: [undefined, cursor1, cursor2, ...] — index 0 = first page (no cursor)
   const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined]);
@@ -54,13 +55,13 @@ export default function StudentsPage() {
   // Reset pagination on filter change
   useEffect(() => {
     resetPagination();
-  }, [statusFilter, classFilter, scholarshipFilter, resetPagination]);
+  }, [enrollmentStatusFilter, classFilter, scholarshipFilter, resetPagination]);
 
   const currentCursor = cursorStack[pageIndex];
 
   const { data, isLoading, refetch, isFetching } = useStudents({
     name: debouncedSearch || undefined,
-    status: statusFilter || undefined,
+    enrollmentStatus: enrollmentStatusFilter || undefined,
     classId: classFilter || undefined,
     scholarship: scholarshipFilter || undefined,
     cursor: currentCursor,
@@ -127,14 +128,13 @@ export default function StudentsPage() {
             </select>
             <select
               className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              value={enrollmentStatusFilter}
+              onChange={(e) => setEnrollmentStatusFilter(e.target.value)}
             >
-              <option value="">Tous les statuts</option>
-              <option value="active">Inscrit</option>
-              <option value="transfer">Transféré</option>
-              <option value="expelled">Expulsé</option>
-              <option value="graduated">Diplômé</option>
+              <option value="">Inscrits</option>
+              <option value="transferred">Transférés</option>
+              <option value="inactive">Inactifs</option>
+              <option value="graduated">Diplômés</option>
             </select>
             <select
               className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -171,12 +171,12 @@ export default function StudentsPage() {
             <EmptyState
               icon={GraduationCap}
               title="Aucun élève trouvé"
-              description={debouncedSearch || statusFilter || classFilter || scholarshipFilter
+              description={debouncedSearch || enrollmentStatusFilter || classFilter || scholarshipFilter
                 ? 'Essayez de modifier vos filtres.'
                 : 'Commencez par ajouter votre premier élève.'
               }
             >
-              {canCreate && !debouncedSearch && !statusFilter && !classFilter && (
+              {canCreate && !debouncedSearch && !enrollmentStatusFilter && !classFilter && (
                 <Button size="sm" onClick={() => setCreateOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Nouvel élève
@@ -221,7 +221,12 @@ export default function StudentsPage() {
                         {student.gender === 'male' ? 'M' : 'F'}
                       </TableCell>
                       <TableCell>
-                        <StudentStatusBadge status={student.status} />
+                        <div className="flex items-center gap-1.5">
+                          <StudentStatusBadge status={student.enrollmentStatus ?? 'enrolled'} />
+                          {student.enrollmentStatus === 'enrolled' && student.hasOverdue && (
+                            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="sm" className="text-xs">

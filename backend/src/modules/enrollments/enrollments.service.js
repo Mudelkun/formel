@@ -48,6 +48,7 @@ async function listEnrollments({ schoolYearId, classId, cursor, limit }) {
     studentId: enrollments.studentId,
     classId: enrollments.classId,
     schoolYearId: enrollments.schoolYearId,
+    status: enrollments.status,
     createdAt: enrollments.createdAt,
     studentFirstName: students.firstName,
     studentLastName: students.lastName,
@@ -134,6 +135,7 @@ async function getEnrollmentById(id) {
       studentId: enrollments.studentId,
       classId: enrollments.classId,
       schoolYearId: enrollments.schoolYearId,
+      status: enrollments.status,
       createdAt: enrollments.createdAt,
       updatedAt: enrollments.updatedAt,
       studentFirstName: students.firstName,
@@ -158,4 +160,24 @@ async function getEnrollmentById(id) {
   return enrollment;
 }
 
-module.exports = { listEnrollments, createEnrollment, getEnrollmentById };
+async function updateEnrollment(id, data, userId) {
+  const [existing] = await db
+    .select({ id: enrollments.id })
+    .from(enrollments)
+    .where(eq(enrollments.id, id));
+
+  if (!existing) {
+    throw new AppError(404, 'Enrollment not found');
+  }
+
+  const [updated] = await db
+    .update(enrollments)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(enrollments.id, id))
+    .returning();
+
+  logAudit(userId, 'update', 'enrollments', id, existing, updated);
+  return updated;
+}
+
+module.exports = { listEnrollments, createEnrollment, getEnrollmentById, updateEnrollment };

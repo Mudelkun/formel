@@ -3,6 +3,7 @@ import { useAuth } from '@/context/auth';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, LogOut } from 'lucide-react';
 import MobileSidebar from './MobileSidebar';
+import ThemeToggle from '../ThemeToggle';
 
 const roleLabels: Record<string, string> = {
   admin: 'Administrateur',
@@ -41,6 +42,8 @@ export default function Header() {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      <ThemeToggle />
 
       {/* User menu */}
       <div className="relative" ref={menuRef}>

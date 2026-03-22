@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/context/auth';
+import { ThemeProvider } from '@/context/theme';
 import AppLayout from '@/components/layout/AppLayout';
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
@@ -67,105 +68,107 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              {/* Public */}
-              <Route
-                path="/login"
-                element={
-                  <GuestRoute>
-                    <LoginPage />
-                  </GuestRoute>
-                }
-              />
-
-              {/* Protected — wrapped in AppLayout */}
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <AppLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<DashboardRedirect />} />
-
-                {/* Gestion Scolaire */}
-                <Route path="students" element={<StudentsPage />} />
-                <Route path="students/:id" element={<StudentDetailPage />} />
-                <Route path="classes" element={<ClassesPage />} />
+          <ThemeProvider>
+            <AuthProvider>
+              <Routes>
+                {/* Public */}
                 <Route
-                  path="class-groups"
+                  path="/login"
                   element={
+                    <GuestRoute>
+                      <LoginPage />
+                    </GuestRoute>
+                  }
+                />
+
+                {/* Protected — wrapped in AppLayout */}
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<DashboardRedirect />} />
+
+                  {/* Gestion Scolaire */}
+                  <Route path="students" element={<StudentsPage />} />
+                  <Route path="students/:id" element={<StudentDetailPage />} />
+                  <Route path="classes" element={<ClassesPage />} />
+                  <Route
+                    path="class-groups"
+                    element={
                     <ProtectedRoute roles={['admin', 'secretary']}>
                       <ClassGroupsPage />
                     </ProtectedRoute>
                   }
-                />
-                <Route
-                  path="enrollments"
-                  element={
-                    <ProtectedRoute roles={['admin', 'secretary']}>
-                      <EnrollmentsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="school-years"
-                  element={
-                    <ProtectedRoute roles={['admin', 'secretary']}>
-                      <SchoolYearsPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  />
+                  <Route
+                    path="enrollments"
+                    element={
+                      <ProtectedRoute roles={['admin', 'secretary']}>
+                        <EnrollmentsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="school-years"
+                    element={
+                      <ProtectedRoute roles={['admin', 'secretary']}>
+                        <SchoolYearsPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Finances */}
-                <Route
-                  path="payments"
-                  element={
-                    <ProtectedRoute roles={['admin', 'secretary']}>
-                      <PaymentsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="finance"
-                  element={
-                    <ProtectedRoute roles={['admin']}>
-                      <FinancePage />
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Finances */}
+                  <Route
+                    path="payments"
+                    element={
+                      <ProtectedRoute roles={['admin', 'secretary']}>
+                        <PaymentsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="finance"
+                    element={
+                      <ProtectedRoute roles={['admin']}>
+                        <FinancePage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Administration */}
-                <Route
-                  path="users"
-                  element={
-                    <ProtectedRoute roles={['admin']}>
-                      <UsersPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="audit-logs"
-                  element={
-                    <ProtectedRoute roles={['admin']}>
-                      <AuditLogsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="settings"
-                  element={
-                    <ProtectedRoute roles={['admin']}>
-                      <SettingsPage />
-                    </ProtectedRoute>
-                  }
-                />
-              </Route>
+                  {/* Administration */}
+                  <Route
+                    path="users"
+                    element={
+                      <ProtectedRoute roles={['admin']}>
+                        <UsersPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="audit-logs"
+                    element={
+                      <ProtectedRoute roles={['admin']}>
+                        <AuditLogsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="settings"
+                    element={
+                      <ProtectedRoute roles={['admin']}>
+                        <SettingsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Route>
 
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </AuthProvider>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </AuthProvider>
+          </ThemeProvider>
         </BrowserRouter>
       </TooltipProvider>
       <Toaster />

@@ -1,4 +1,4 @@
-const { eq, ilike, or, and, sql, count, gt, inArray } = require('drizzle-orm');
+const { eq, ilike, or, and, sql, count, gt, lte, inArray, exists } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { students } = require('../../db/schema/students');
 const { contacts } = require('../../db/schema/contacts');
@@ -37,7 +37,7 @@ function encodeCursor(student) {
   ).toString('base64url');
 }
 
-async function listStudents({ name, status, classId, scholarship, cursor, limit }) {
+async function listStudents({ name, status, enrollmentStatus, overdue, classId, scholarship, cursor, limit }) {
   const conditions = [];
 
   if (name) {
@@ -48,10 +48,25 @@ async function listStudents({ name, status, classId, scholarship, cursor, limit 
     conditions.push(eq(students.status, status));
   }
 
+  // Filter by enrollment status (defaults to 'enrolled' if not specified)
+  const effectiveEnrollmentStatus = enrollmentStatus || 'enrolled';
+  conditions.push(eq(enrollments.status, effectiveEnrollmentStatus));
+
   if (scholarship === 'true') {
     conditions.push(eq(students.scholarshipRecipient, true));
   } else if (scholarship === 'false') {
     conditions.push(eq(students.scholarshipRecipient, false));
+  }
+
+  // Filter students with overdue versements
+  if (overdue === 'true') {
+    const today = new Date().toISOString().split('T')[0];
+    conditions.push(sql`EXISTS (
+      SELECT 1 FROM ${versements}
+      WHERE ${versements.classGroupId} = ${classes.classGroupId}
+        AND ${versements.schoolYearId} = ${enrollments.schoolYearId}
+        AND ${versements.dueDate} <= ${today}
+    )`);
   }
 
   // Cursor-based keyset condition: (lastName, firstName, id) > (cursorLN, cursorFN, cursorID)
@@ -65,6 +80,8 @@ async function listStudents({ name, status, classId, scholarship, cursor, limit 
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const today = new Date().toISOString().split('T')[0];
 
   const selectFields = {
     id: students.id,
@@ -81,6 +98,13 @@ async function listStudents({ name, status, classId, scholarship, cursor, limit 
     updatedAt: students.updatedAt,
     className: classes.name,
     gradeLevel: classes.gradeLevel,
+    enrollmentStatus: enrollments.status,
+    hasOverdue: sql`EXISTS (
+      SELECT 1 FROM ${versements}
+      WHERE ${versements.classGroupId} = ${classes.classGroupId}
+        AND ${versements.schoolYearId} = ${enrollments.schoolYearId}
+        AND ${versements.dueDate} <= ${today}
+    )`.as('has_overdue'),
   };
 
   const baseJoins = (qb) =>
@@ -151,12 +175,13 @@ async function getStudentById(id) {
     .from(contacts)
     .where(eq(contacts.studentId, id));
 
-  // Get current enrollment (active school year)
+  // Get current enrollment (active school year, enrolled status)
   const [currentEnrollment] = await db
     .select({
       enrollmentId: enrollments.id,
       className: classes.name,
       gradeLevel: classes.gradeLevel,
+      enrollmentStatus: enrollments.status,
     })
     .from(enrollments)
     .innerJoin(classes, eq(enrollments.classId, classes.id))

@@ -16,4 +16,9 @@ const getEnrollment = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
-module.exports = { listEnrollments, createEnrollment, getEnrollment };
+const updateEnrollment = asyncHandler(async (req, res) => {
+  const result = await enrollmentsService.updateEnrollment(req.params.id, req.body, req.user.userId);
+  res.json(result);
+});
+
+module.exports = { listEnrollments, createEnrollment, getEnrollment, updateEnrollment };

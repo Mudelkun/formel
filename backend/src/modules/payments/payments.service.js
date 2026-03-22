@@ -40,12 +40,13 @@ async function createPayment(enrollmentId, data, file, role, userId) {
     throw new AppError(400, 'Un document justificatif est requis');
   }
 
-  const status = role === 'admin' ? 'completed' : 'pending';
+  const { autoConfirm, ...paymentData } = data;
+  const status = (role === 'admin' && autoConfirm) ? 'completed' : 'pending';
 
   const result = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(payments)
-      .values({ ...data, enrollmentId, status, updatedAt: new Date() })
+      .values({ ...paymentData, enrollmentId, status, updatedAt: new Date() })
       .returning();
 
     const key = `payments/${created.id}/documents/${Date.now()}-${file.originalname}`;
@@ -106,8 +107,8 @@ async function updatePayment(id, data, role, userId) {
     throw new AppError(404, 'Payment not found');
   }
 
-  if (data.status && data.status !== 'pending' && role !== 'admin') {
-    throw new AppError(403, 'Only admin can approve or reject payments');
+  if (data.status && role !== 'admin') {
+    throw new AppError(403, 'Only admin can change payment status');
   }
 
   const [updated] = await db
@@ -139,7 +140,7 @@ function encodePaymentCursor(row) {
   ).toString('base64url');
 }
 
-async function listAllPayments({ status, search, cursor, limit }) {
+async function listAllPayments({ status, search, classId, classGroupId, cursor, limit }) {
   const conditions = [];
 
   // Only show payments from active school year
@@ -147,6 +148,14 @@ async function listAllPayments({ status, search, cursor, limit }) {
 
   if (status) {
     conditions.push(eq(payments.status, status));
+  }
+
+  if (classId) {
+    conditions.push(eq(enrollments.classId, classId));
+  }
+
+  if (classGroupId) {
+    conditions.push(eq(classes.classGroupId, classGroupId));
   }
 
   if (search) {

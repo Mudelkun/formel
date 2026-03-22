@@ -30,6 +30,8 @@ const listStudentsSchema = z.object({
   query: z.object({
     name: z.string().optional(),
     status: z.enum(['active', 'transfer', 'expelled', 'graduated']).optional(),
+    enrollmentStatus: z.enum(['enrolled', 'transferred', 'inactive', 'graduated']).optional(),
+    overdue: z.enum(['true']).optional(),
     classId: z.string().uuid().optional(),
     scholarship: z.enum(['true', 'false']).optional(),
     cursor: z.string().optional(),

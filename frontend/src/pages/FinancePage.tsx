@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { CreditCard, TrendingUp, AlertTriangle, BarChart3 } from 'lucide-react';
+import { CreditCard, TrendingUp, AlertTriangle, Gift } from 'lucide-react';
 
 function ClassGroupSection({ groupId, groupName, schoolYearId }: { groupId: string; groupName: string; schoolYearId: string }) {
   const { data, isLoading } = useFees(groupId, schoolYearId);
@@ -102,10 +102,7 @@ export default function FinancePage() {
   const { data: groupsData, isLoading: groupsLoading } = useClassGroups();
   const groups = groupsData?.data ?? [];
 
-  const globalRate =
-    summary && summary.total_expected > 0
-      ? Math.round((summary.total_collected / summary.total_expected) * 100)
-      : 0;
+  const totalScholarships = summary?.total_scholarships ?? 0;
 
   return (
     <>
@@ -138,9 +135,9 @@ export default function FinancePage() {
           icon={AlertTriangle}
         />
         <StatCard
-          label="Taux global"
-          value={summaryLoading ? '—' : `${globalRate}%`}
-          icon={BarChart3}
+          label="Total bourses"
+          value={summaryLoading ? '—' : formatAmount(totalScholarships)}
+          icon={Gift}
         />
       </div>
 

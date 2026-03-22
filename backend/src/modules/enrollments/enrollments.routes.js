@@ -6,11 +6,13 @@ const {
   listEnrollmentsSchema,
   createEnrollmentSchema,
   enrollmentIdParamSchema,
+  updateEnrollmentSchema,
 } = require('./enrollments.validation');
 const {
   listEnrollments,
   createEnrollment,
   getEnrollment,
+  updateEnrollment,
 } = require('./enrollments.controller');
 
 // Scholarships (nested under enrollments)
@@ -38,6 +40,7 @@ const router = Router();
 router.get('/', auth, authorize('admin', 'secretary'), validate(listEnrollmentsSchema), listEnrollments);
 router.post('/', auth, authorize('admin', 'secretary'), validate(createEnrollmentSchema), createEnrollment);
 router.get('/:id', auth, authorize('admin', 'secretary'), validate(enrollmentIdParamSchema), getEnrollment);
+router.patch('/:id', auth, authorize('admin'), validate(updateEnrollmentSchema), updateEnrollment);
 
 // Scholarships — list & create nested under enrollment
 router.get('/:id/scholarships', auth, authorize('admin', 'secretary'), validate(listScholarshipsSchema), listScholarships);

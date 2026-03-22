@@ -13,6 +13,8 @@ export interface Student {
   updatedAt: string | null;
   className?: string | null;
   gradeLevel?: number | null;
+  enrollmentStatus?: 'enrolled' | 'transferred' | 'inactive' | 'graduated';
+  hasOverdue?: boolean;
 }
 
 export interface StudentDetail extends Student {
@@ -21,6 +23,7 @@ export interface StudentDetail extends Student {
     enrollmentId: string;
     className: string;
     gradeLevel: number;
+    enrollmentStatus: 'enrolled' | 'transferred' | 'inactive' | 'graduated';
   } | null;
 }
 
@@ -107,6 +110,7 @@ export interface ClassItem {
   name: string;
   gradeLevel: number;
   classGroupId: string;
+  studentCount: number;
 }
 
 export interface SchoolYear {

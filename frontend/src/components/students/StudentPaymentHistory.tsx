@@ -26,6 +26,7 @@ const methodLabels: Record<string, string> = {
   check: 'Chèque',
   transfer: 'Virement',
   mobile: 'Mobile',
+  deposit: 'Dépôt bancaire',
 };
 
 export default function StudentPaymentHistory({ student }: Props) {
@@ -74,7 +75,9 @@ export default function StudentPaymentHistory({ student }: Props) {
                 <div className="text-right">
                   <p className="text-sm font-medium">{formatCurrency(payment.amount)} HTG</p>
                   {payment.status === 'completed' ? (
-                    <Badge variant="default" className="text-[10px]">Complété</Badge>
+                    <Badge variant="default" className="text-[10px]">Confirmé</Badge>
+                  ) : payment.status === 'failed' ? (
+                    <Badge variant="destructive" className="text-[10px]">Rejeté</Badge>
                   ) : (
                     <Badge variant="secondary" className="text-[10px]">En attente</Badge>
                   )}

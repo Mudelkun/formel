@@ -4,6 +4,8 @@ const listAllPaymentsSchema = z.object({
   query: z.object({
     status: z.enum(['pending', 'completed', 'failed']).optional(),
     search: z.string().optional(),
+    classId: z.string().uuid().optional(),
+    classGroupId: z.string().uuid().optional(),
     cursor: z.string().optional(),
     limit: z.coerce.number().int().positive().max(100).optional().default(20),
   }),
@@ -20,6 +22,7 @@ const createPaymentSchema = z.object({
     paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     paymentMethod: z.string().min(1).max(50).optional(),
     isBookPayment: z.preprocess((v) => v === true || v === 'true', z.boolean()).optional().default(false),
+    autoConfirm: z.preprocess((v) => v === true || v === 'true', z.boolean()).optional().default(false),
     notes: z.string().optional(),
   }),
 });

@@ -20,11 +20,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/context/auth';
-import { useClassGroups, useCreateClassGroup, useFees } from '@/hooks/use-class-groups';
+import { useClassGroups, useCreateClassGroup, useUpdateClassGroup, useFees } from '@/hooks/use-class-groups';
 import { useClasses, useSchoolYears } from '@/hooks/use-students';
 import { useCurrency } from '@/hooks/use-currency';
 import type { ClassGroup, FeesResponse } from '@/api/class-groups';
-import { Plus, Layers, Settings, School, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Layers, Settings, School, Loader2, Pencil } from 'lucide-react';
 
 const createGroupSchema = z.object({
   name: z.string().min(1, 'Nom requis'),
@@ -39,12 +40,14 @@ function GroupCard({
   activeYearId,
   isAdmin,
   onConfigure,
+  onEdit,
 }: {
   group: ClassGroup;
   classNames: string[];
   activeYearId: string;
   isAdmin: boolean;
   onConfigure: (group: ClassGroup, fees: FeesResponse | null) => void;
+  onEdit: (group: ClassGroup) => void;
 }) {
   const { formatAmount } = useCurrency();
   const { data: feesData, isLoading: feesLoading } = useFees(group.id, activeYearId);
@@ -63,7 +66,12 @@ function GroupCard({
               <Layers className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <CardTitle className="text-base font-semibold">{group.name}</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base font-semibold">{group.name}</CardTitle>
+                <Badge variant="outline" className="text-xs">
+                  {classNames.length} classe{classNames.length !== 1 ? 's' : ''}
+                </Badge>
+              </div>
               {classNames.length > 0 && (
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <School className="h-3 w-3 text-muted-foreground" />
@@ -75,14 +83,24 @@ function GroupCard({
             </div>
           </div>
           {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onConfigure(group, feesData ?? null)}
-            >
-              <Settings className="mr-2 h-3.5 w-3.5" />
-              Configurer
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onEdit(group)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onConfigure(group, feesData ?? null)}
+              >
+                <Settings className="mr-2 h-3.5 w-3.5" />
+                Configurer
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
@@ -129,8 +147,11 @@ export default function ClassGroupsPage() {
   const { data: classesData, isLoading: classesLoading } = useClasses();
   const { data: yearsData, isLoading: yearsLoading } = useSchoolYears();
   const createClassGroup = useCreateClassGroup();
+  const updateClassGroup = useUpdateClassGroup();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [editGroup, setEditGroup] = useState<ClassGroup | null>(null);
+  const [editName, setEditName] = useState('');
   const [configureGroup, setConfigureGroup] = useState<ClassGroup | null>(null);
   const [configureFees, setConfigureFees] = useState<FeesResponse | null>(null);
 
@@ -244,6 +265,7 @@ export default function ClassGroupsPage() {
               activeYearId={activeYear?.id ?? ''}
               isAdmin={!!isAdmin}
               onConfigure={handleConfigure}
+              onEdit={(g) => { setEditGroup(g); setEditName(g.name); }}
             />
           ))}
         </div>
@@ -273,6 +295,47 @@ export default function ClassGroupsPage() {
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Créer
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Group Dialog */}
+      <Dialog open={!!editGroup} onOpenChange={(open) => { if (!open) setEditGroup(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier le groupe</DialogTitle>
+            <DialogDescription>
+              Modifiez le nom du groupe de classes.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!editGroup || !editName.trim()) return;
+              try {
+                await updateClassGroup.mutateAsync({ id: editGroup.id, name: editName.trim() });
+                setEditGroup(null);
+              } catch { /* handled by hook */ }
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="editGroupName">Nom du groupe *</Label>
+              <Input
+                id="editGroupName"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditGroup(null)}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={updateClassGroup.isPending || !editName.trim()}>
+                {updateClassGroup.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Enregistrer
               </Button>
             </DialogFooter>
           </form>

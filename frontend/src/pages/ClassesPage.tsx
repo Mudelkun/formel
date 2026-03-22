@@ -19,10 +19,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/context/auth';
-import { useClasses, useCreateClass } from '@/hooks/use-students';
+import { useClasses, useCreateClass, useUpdateClass } from '@/hooks/use-students';
 import { useClassGroups } from '@/hooks/use-class-groups';
-import { Plus, School } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
+import { Plus, School, Users, Loader2, Pencil } from 'lucide-react';
 
 const createClassSchema = z.object({
   name: z.string().min(1, 'Nom requis'),
@@ -51,8 +50,10 @@ export default function ClassesPage() {
   const { data: classesData, isLoading: classesLoading } = useClasses();
   const { data: groupsData, isLoading: groupsLoading } = useClassGroups();
   const createClass = useCreateClass();
+  const updateClassMut = useUpdateClass();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [editClass, setEditClass] = useState<{ id: string; name: string; gradeLevel: number; classGroupId: string } | null>(null);
 
   const classes = classesData?.data ?? [];
   const classGroups = groupsData?.data ?? [];
@@ -173,12 +174,30 @@ export default function ClassesPage() {
                           <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${color}`}>
                             <School className="h-5 w-5" />
                           </div>
-                          <Badge variant="outline" className="text-xs">
-                            Niv. {cls.gradeLevel}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => setEditClass({ id: cls.id, name: cls.name, gradeLevel: cls.gradeLevel, classGroupId: cls.classGroupId })}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                            )}
+                            <Badge variant="outline" className="text-xs">
+                              Niv. {cls.gradeLevel}
+                            </Badge>
+                          </div>
                         </div>
                         <p className="font-semibold">{cls.name}</p>
-                        <p className="text-sm text-muted-foreground mt-0.5">{groupMap.get(cls.classGroupId) ?? ''}</p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <p className="text-sm text-muted-foreground">{groupMap.get(cls.classGroupId) ?? ''}</p>
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="h-3 w-3" />
+                            {cls.studentCount} élève{cls.studentCount !== 1 ? 's' : ''}
+                          </span>
+                        </div>
                       </CardContent>
                     </Card>
                   );
@@ -239,6 +258,67 @@ export default function ClassesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Class Dialog */}
+      <Dialog open={!!editClass} onOpenChange={(open) => { if (!open) setEditClass(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier la classe</DialogTitle>
+            <DialogDescription>
+              Modifiez les détails de la classe.
+            </DialogDescription>
+          </DialogHeader>
+          {editClass && (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const formData = new FormData(form);
+                const name = (formData.get('editClassName') as string).trim();
+                const gradeLevel = Number(formData.get('editGradeLevel'));
+                const classGroupId = formData.get('editClassGroupId') as string;
+                if (!name || !gradeLevel || !classGroupId) return;
+                try {
+                  await updateClassMut.mutateAsync({ id: editClass.id, name, gradeLevel, classGroupId });
+                  setEditClass(null);
+                } catch { /* handled by hook */ }
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-1.5">
+                <Label htmlFor="editClassName">Nom *</Label>
+                <Input id="editClassName" name="editClassName" defaultValue={editClass.name} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="editGradeLevel">Niveau *</Label>
+                <Input id="editGradeLevel" name="editGradeLevel" type="number" min={1} defaultValue={editClass.gradeLevel} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="editClassGroupId">Groupe *</Label>
+                <select
+                  id="editClassGroupId"
+                  name="editClassGroupId"
+                  defaultValue={editClass.classGroupId}
+                  className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  {classGroups.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditClass(null)}>
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={updateClassMut.isPending}>
+                  {updateClassMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Enregistrer
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </>

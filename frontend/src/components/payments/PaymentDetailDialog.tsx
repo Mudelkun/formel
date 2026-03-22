@@ -18,12 +18,13 @@ const methodLabels: Record<string, string> = {
   transfer: 'Virement',
   check: 'Chèque',
   mobile: 'Mobile',
+  deposit: 'Dépôt bancaire',
 };
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Check }> = {
   completed: { label: 'Confirmé', color: 'text-green-600', icon: Check },
   pending: { label: 'En attente', color: 'text-amber-600', icon: Clock },
-  failed: { label: 'Échoué', color: 'text-red-600', icon: X },
+  failed: { label: 'Rejeté', color: 'text-red-600', icon: X },
 };
 
 function isImageUrl(url: string) {
@@ -139,28 +140,43 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
             </div>
 
             {/* Admin actions */}
-            {isAdmin && payment.status === 'pending' && (
+            {isAdmin && (
               <>
                 <Separator />
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => handleStatusChange('completed')}
-                    disabled={updatePayment.isPending}
-                  >
-                    {updatePayment.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Check className="mr-1.5 h-3.5 w-3.5" />
-                    Approuver
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleStatusChange('failed')}
-                    disabled={updatePayment.isPending}
-                  >
-                    <X className="mr-1.5 h-3.5 w-3.5" />
-                    Rejeter
-                  </Button>
+                  {payment.status !== 'completed' && (
+                    <Button
+                      size="sm"
+                      onClick={() => handleStatusChange('completed')}
+                      disabled={updatePayment.isPending}
+                    >
+                      {updatePayment.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      <Check className="mr-1.5 h-3.5 w-3.5" />
+                      Approuver
+                    </Button>
+                  )}
+                  {payment.status !== 'pending' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleStatusChange('pending')}
+                      disabled={updatePayment.isPending}
+                    >
+                      <Clock className="mr-1.5 h-3.5 w-3.5" />
+                      Mettre en attente
+                    </Button>
+                  )}
+                  {payment.status !== 'failed' && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleStatusChange('failed')}
+                      disabled={updatePayment.isPending}
+                    >
+                      <X className="mr-1.5 h-3.5 w-3.5" />
+                      Rejeter
+                    </Button>
+                  )}
                 </div>
               </>
             )}
@@ -191,7 +207,7 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
                       ref={fileInputRef}
                       type="file"
                       className="hidden"
-                      accept="image/*,.pdf"
+                      accept=".pdf"
                       onChange={handleFileUpload}
                     />
                   </>
@@ -269,6 +285,7 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
                               size="sm"
                               className="h-7 w-7 p-0"
                               onClick={() => {
+                                if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) return;
                                 deleteDoc.mutate(activeDoc.id);
                                 if (safeIndex > 0) setActiveDocIndex(safeIndex - 1);
                               }}

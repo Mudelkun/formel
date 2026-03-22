@@ -1,9 +1,9 @@
 import { Badge } from '@/components/ui/badge';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  active: { label: 'Inscrit', variant: 'default' },
-  transfer: { label: 'Transféré', variant: 'secondary' },
-  expelled: { label: 'Expulsé', variant: 'destructive' },
+  enrolled: { label: 'Inscrit', variant: 'default' },
+  transferred: { label: 'Transféré', variant: 'secondary' },
+  inactive: { label: 'Inactif', variant: 'destructive' },
   graduated: { label: 'Diplômé', variant: 'outline' },
 };
 

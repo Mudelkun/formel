@@ -26,7 +26,7 @@ export interface PaymentDocument {
   createdAt: string;
 }
 
-export async function listAllPayments(params: { status?: string; search?: string; cursor?: string; limit?: number } = {}): Promise<CursorPaginatedResponse<Payment>> {
+export async function listAllPayments(params: { status?: string; search?: string; classId?: string; classGroupId?: string; cursor?: string; limit?: number } = {}): Promise<CursorPaginatedResponse<Payment>> {
   const { data } = await api.get('/payments', { params: { limit: 20, ...params } });
   return data;
 }
@@ -43,7 +43,7 @@ export async function updatePayment(id: string, input: { status?: string; notes?
 
 export async function createPaymentForEnrollment(
   enrollmentId: string,
-  input: { amount: string; paymentDate: string; paymentMethod?: string; isBookPayment?: boolean; notes?: string },
+  input: { amount: string; paymentDate: string; paymentMethod?: string; isBookPayment?: boolean; autoConfirm?: boolean; notes?: string },
   file: File,
 ): Promise<Payment> {
   const formData = new FormData();
@@ -52,6 +52,7 @@ export async function createPaymentForEnrollment(
   formData.append('paymentDate', input.paymentDate);
   if (input.paymentMethod) formData.append('paymentMethod', input.paymentMethod);
   if (input.isBookPayment) formData.append('isBookPayment', 'true');
+  if (input.autoConfirm) formData.append('autoConfirm', 'true');
   if (input.notes) formData.append('notes', input.notes);
   const { data } = await api.post(`/enrollments/${enrollmentId}/payments`, formData);
   return data;

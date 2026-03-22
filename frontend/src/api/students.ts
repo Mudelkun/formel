@@ -17,6 +17,8 @@ import type {
 export interface StudentFilters {
   name?: string;
   status?: string;
+  enrollmentStatus?: string;
+  overdue?: string;
   classId?: string;
   scholarship?: string;
   cursor?: string;

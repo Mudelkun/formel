@@ -3,6 +3,8 @@ import { useAuth } from '@/context/auth';
 import { usePayments } from '@/hooks/use-payments';
 import { useCurrency } from '@/hooks/use-currency';
 import { useFinanceSummary } from '@/hooks/use-finance';
+import { useClasses } from '@/hooks/use-students';
+import { useClassGroups } from '@/hooks/use-class-groups';
 import CreatePaymentDialog from '@/components/payments/CreatePaymentDialog';
 import PaymentDetailDialog from '@/components/payments/PaymentDetailDialog';
 import PageHeader from '@/components/PageHeader';
@@ -27,7 +29,7 @@ import { Plus, Search, Check, Clock, X, CreditCard, TrendingUp } from 'lucide-re
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Check }> = {
   completed: { label: 'Confirmé', color: 'text-green-600', icon: Check },
   pending: { label: 'En attente', color: 'text-amber-600', icon: Clock },
-  failed: { label: 'Échoué', color: 'text-red-600', icon: X },
+  failed: { label: 'Rejeté', color: 'text-red-600', icon: X },
 };
 
 export default function PaymentsPage() {
@@ -41,6 +43,8 @@ export default function PaymentsPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('');
+  const [groupFilter, setGroupFilter] = useState('');
   const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined]);
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -61,18 +65,28 @@ export default function PaymentsPage() {
   // Reset pagination on filter change
   useEffect(() => {
     resetPagination();
-  }, [statusFilter, resetPagination]);
+  }, [statusFilter, classFilter, groupFilter, resetPagination]);
 
   const currentCursor = cursorStack[pageIndex];
+
+  const { data: classesData } = useClasses();
+  const classList = classesData?.data ?? [];
+  const { data: groupsData } = useClassGroups();
+  const groupList = groupsData?.data ?? [];
 
   const { data, isLoading } = usePayments({
     search: debouncedSearch || undefined,
     status: statusFilter || undefined,
+    classId: classFilter || undefined,
+    classGroupId: groupFilter || undefined,
     cursor: currentCursor,
     limit: PAGE_SIZE,
   });
 
-  const { data: summary } = useFinanceSummary();
+  const { data: summary } = useFinanceSummary({
+    classId: classFilter || undefined,
+    classGroupId: groupFilter || undefined,
+  });
 
   const payments = data?.data ?? [];
   const pagination = data?.pagination;
@@ -137,8 +151,8 @@ export default function PaymentsPage() {
       {/* Filters */}
       <Card className="mb-6">
         <CardContent className="p-4">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Rechercher par élève..."
@@ -155,7 +169,27 @@ export default function PaymentsPage() {
               <option value="">Tous les statuts</option>
               <option value="completed">Confirmé</option>
               <option value="pending">En attente</option>
-              <option value="failed">Échoué</option>
+              <option value="failed">Rejeté</option>
+            </select>
+            <select
+              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={groupFilter}
+              onChange={(e) => { setGroupFilter(e.target.value); setClassFilter(''); }}
+            >
+              <option value="">Tous les groupes</option>
+              {groupList.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+            <select
+              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+            >
+              <option value="">Toutes les classes</option>
+              {(groupFilter ? classList.filter((c) => c.classGroupId === groupFilter) : classList).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
             </select>
           </div>
         </CardContent>

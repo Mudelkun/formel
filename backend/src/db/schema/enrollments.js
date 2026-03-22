@@ -1,4 +1,4 @@
-const { pgTable, uuid, timestamp, uniqueIndex, index } = require('drizzle-orm/pg-core');
+const { pgTable, uuid, varchar, timestamp, uniqueIndex, index } = require('drizzle-orm/pg-core');
 const { students } = require('./students');
 const { classes } = require('./classes');
 const { schoolYears } = require('./schoolYears');
@@ -8,6 +8,7 @@ const enrollments = pgTable('enrollments', {
   studentId: uuid('student_id').notNull().references(() => students.id),
   classId: uuid('class_id').notNull().references(() => classes.id),
   schoolYearId: uuid('school_year_id').notNull().references(() => schoolYears.id),
+  status: varchar('status').notNull().default('enrolled'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at'),
 }, (table) => [
@@ -15,6 +16,7 @@ const enrollments = pgTable('enrollments', {
   index().on(table.studentId),
   index().on(table.classId),
   index().on(table.schoolYearId),
+  index().on(table.status),
 ]);
 
 module.exports = { enrollments };

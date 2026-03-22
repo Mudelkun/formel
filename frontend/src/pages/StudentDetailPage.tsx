@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
-import { useStudent } from '@/hooks/use-students';
+import { useStudent, useStudentBalance } from '@/hooks/use-students';
+import { useCurrency } from '@/hooks/use-currency';
 import PageHeader from '@/components/PageHeader';
 import StudentPhotoCard from '@/components/students/StudentPhotoCard';
 import StudentPersonalInfo from '@/components/students/StudentPersonalInfo';
@@ -11,7 +12,7 @@ import StudentPaymentHistory from '@/components/students/StudentPaymentHistory';
 import StudentScholarshipCard from '@/components/students/StudentScholarshipCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertTriangle } from 'lucide-react';
 
 export default function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -75,6 +76,8 @@ export default function StudentDetailPage() {
         />
       </div>
 
+      <OverdueAlert studentId={student.id} />
+
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column */}
         <div className="lg:col-span-2 space-y-6">
@@ -93,5 +96,31 @@ export default function StudentDetailPage() {
         </div>
       </div>
     </>
+  );
+}
+
+function OverdueAlert({ studentId }: { studentId: string }) {
+  const { data: balance } = useStudentBalance(studentId);
+  const { formatAmount } = useCurrency();
+
+  if (!balance) return null;
+
+  const overdueVersements = balance.versements.filter((v) => v.isOverdue);
+  if (overdueVersements.length === 0) return null;
+
+  const totalOverdue = overdueVersements.reduce((s, v) => s + v.amountRemaining, 0);
+
+  return (
+    <div className="mb-6 flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+      <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+      <div>
+        <p className="text-sm font-medium text-destructive">
+          {overdueVersements.length} versement{overdueVersements.length > 1 ? 's' : ''} en retard
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {overdueVersements.map((v) => v.name).join(', ')} — Total restant : {formatAmount(totalOverdue)}
+        </p>
+      </div>
+    </div>
   );
 }
