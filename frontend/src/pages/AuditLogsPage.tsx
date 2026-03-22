@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuditLogs } from '@/hooks/use-audit-logs';
 import PageHeader from '@/components/PageHeader';
-import Pagination from '@/components/Pagination';
+import CursorPagination from '@/components/CursorPagination';
 import EmptyState from '@/components/EmptyState';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,24 +34,50 @@ const tableLabels: Record<string, string> = {
   school_years: 'Années scolaires',
 };
 
+const PAGE_SIZE = 20;
+
 export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = useState('');
   const [tableFilter, setTableFilter] = useState('');
-  const [page, setPage] = useState(1);
+  const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined]);
+  const [pageIndex, setPageIndex] = useState(0);
+
+  const resetPagination = useCallback(() => {
+    setCursorStack([undefined]);
+    setPageIndex(0);
+  }, []);
 
   useEffect(() => {
-    setPage(1);
-  }, [actionFilter, tableFilter]);
+    resetPagination();
+  }, [actionFilter, tableFilter, resetPagination]);
+
+  const currentCursor = cursorStack[pageIndex];
 
   const { data, isLoading } = useAuditLogs({
     action: actionFilter || undefined,
     tableName: tableFilter || undefined,
-    page,
-    limit: 20,
+    cursor: currentCursor,
+    limit: PAGE_SIZE,
   });
 
   const logs = data?.data ?? [];
   const pagination = data?.pagination;
+
+  const goToNextPage = useCallback(() => {
+    if (!pagination?.nextCursor) return;
+    const nextIndex = pageIndex + 1;
+    setCursorStack((prev) => {
+      const updated = [...prev];
+      updated[nextIndex] = pagination.nextCursor!;
+      return updated;
+    });
+    setPageIndex(nextIndex);
+  }, [pagination, pageIndex]);
+
+  const goToPrevPage = useCallback(() => {
+    if (pageIndex <= 0) return;
+    setPageIndex(pageIndex - 1);
+  }, [pageIndex]);
 
   return (
     <>
@@ -146,10 +172,14 @@ export default function AuditLogsPage() {
                 </TableBody>
               </Table>
               {pagination && (
-                <Pagination
-                  page={pagination.page}
-                  totalPages={pagination.totalPages}
-                  onPageChange={setPage}
+                <CursorPagination
+                  hasPreviousPage={pageIndex > 0}
+                  hasNextPage={pagination.hasNextPage}
+                  onPrevious={goToPrevPage}
+                  onNext={goToNextPage}
+                  totalCount={pagination.totalCount}
+                  pageSize={PAGE_SIZE}
+                  pageIndex={pageIndex}
                 />
               )}
             </>

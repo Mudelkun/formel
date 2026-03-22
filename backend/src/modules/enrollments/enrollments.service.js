@@ -1,4 +1,4 @@
-const { eq, and, count } = require('drizzle-orm');
+const { eq, and, count, sql } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { enrollments } = require('../../db/schema/enrollments');
 const { students } = require('../../db/schema/students');
@@ -8,42 +8,80 @@ const { schoolYears } = require('../../db/schema/schoolYears');
 const { AppError } = require('../../lib/apiError');
 const { logAudit } = require('../../lib/auditLogger');
 
-async function listEnrollments({ schoolYearId, classId, page, limit }) {
+function decodeEnrollmentCursor(cursor) {
+  try {
+    const json = Buffer.from(cursor, 'base64url').toString('utf8');
+    const { ln, fn, id } = JSON.parse(json);
+    if (typeof ln === 'string' && typeof fn === 'string' && typeof id === 'string') {
+      return { lastName: ln, firstName: fn, id };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function encodeEnrollmentCursor(row) {
+  return Buffer.from(
+    JSON.stringify({ ln: row.studentLastName, fn: row.studentFirstName, id: row.id })
+  ).toString('base64url');
+}
+
+async function listEnrollments({ schoolYearId, classId, cursor, limit }) {
   const conditions = [];
   if (schoolYearId) conditions.push(eq(enrollments.schoolYearId, schoolYearId));
   if (classId) conditions.push(eq(enrollments.classId, classId));
 
+  if (cursor) {
+    const parsed = decodeEnrollmentCursor(cursor);
+    if (parsed) {
+      conditions.push(
+        sql`(${students.lastName}, ${students.firstName}, ${enrollments.id}) > (${parsed.lastName}, ${parsed.firstName}, ${parsed.id})`
+      );
+    }
+  }
+
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const [data, [{ total: totalCount }]] = await Promise.all([
-    db.select({
-      id: enrollments.id,
-      studentId: enrollments.studentId,
-      classId: enrollments.classId,
-      schoolYearId: enrollments.schoolYearId,
-      createdAt: enrollments.createdAt,
-      studentFirstName: students.firstName,
-      studentLastName: students.lastName,
-      className: classes.name,
-      schoolYear: schoolYears.year,
-    })
+  const selectFields = {
+    id: enrollments.id,
+    studentId: enrollments.studentId,
+    classId: enrollments.classId,
+    schoolYearId: enrollments.schoolYearId,
+    createdAt: enrollments.createdAt,
+    studentFirstName: students.firstName,
+    studentLastName: students.lastName,
+    className: classes.name,
+    schoolYear: schoolYears.year,
+  };
+
+  const baseQuery = (qb) =>
+    qb
       .from(enrollments)
       .innerJoin(students, eq(enrollments.studentId, students.id))
       .innerJoin(classes, eq(enrollments.classId, classes.id))
-      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id));
+
+  const [rows, [{ total: totalCount }]] = await Promise.all([
+    baseQuery(db.select(selectFields))
       .where(where)
-      .limit(limit).offset((page - 1) * limit)
-      .orderBy(students.lastName),
-    db.select({ total: count() }).from(enrollments).where(where),
+      .limit(limit + 1)
+      .orderBy(students.lastName, students.firstName, enrollments.id),
+    baseQuery(db.select({ total: count() }))
+      .where(where),
   ]);
+
+  const hasNextPage = rows.length > limit;
+  const data = hasNextPage ? rows.slice(0, limit) : rows;
+  const nextCursor = hasNextPage ? encodeEnrollmentCursor(data[data.length - 1]) : null;
 
   return {
     data,
     pagination: {
-      page,
       limit,
       totalCount,
-      totalPages: Math.ceil(totalCount / limit),
+      nextCursor,
+      hasNextPage,
     },
   };
 }

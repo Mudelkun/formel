@@ -4,7 +4,7 @@ const listEnrollmentsSchema = z.object({
   query: z.object({
     schoolYearId: z.string().uuid().optional(),
     classId: z.string().uuid().optional(),
-    page: z.coerce.number().int().positive().optional().default(1),
+    cursor: z.string().optional(),
     limit: z.coerce.number().int().positive().max(100).optional().default(20),
   }),
 });

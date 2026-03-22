@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { listEnrollments } from '@/api/enrollments';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
-import Pagination from '@/components/Pagination';
+import CursorPagination from '@/components/CursorPagination';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,21 +28,29 @@ export default function EnrollmentsPage() {
   const years = yearsData?.data ?? [];
   const activeYear = years.find((y) => y.isActive);
 
+  const PAGE_SIZE = 20;
   const [schoolYearId, setSchoolYearId] = useState<string>('');
   const [classId, setClassId] = useState<string>('');
-  const [page, setPage] = useState(1);
+  const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined]);
+  const [pageIndex, setPageIndex] = useState(0);
+
+  const resetPagination = useCallback(() => {
+    setCursorStack([undefined]);
+    setPageIndex(0);
+  }, []);
 
   // Default to active year once loaded
   const effectiveYearId = schoolYearId || activeYear?.id || '';
+  const currentCursor = cursorStack[pageIndex];
 
   const { data: enrollmentsData, isLoading: enrollmentsLoading } = useQuery({
-    queryKey: ['enrollments', 'list', { schoolYearId: effectiveYearId, classId: classId || undefined, page }],
+    queryKey: ['enrollments', 'list', { schoolYearId: effectiveYearId, classId: classId || undefined, cursor: currentCursor }],
     queryFn: () =>
       listEnrollments({
         schoolYearId: effectiveYearId || undefined,
         classId: classId || undefined,
-        page,
-        limit: 20,
+        cursor: currentCursor,
+        limit: PAGE_SIZE,
       }),
     placeholderData: keepPreviousData,
     enabled: !yearsLoading,
@@ -50,6 +58,22 @@ export default function EnrollmentsPage() {
 
   const enrollments = enrollmentsData?.data ?? [];
   const pagination = enrollmentsData?.pagination;
+
+  const goToNextPage = useCallback(() => {
+    if (!pagination?.nextCursor) return;
+    const nextIndex = pageIndex + 1;
+    setCursorStack((prev) => {
+      const updated = [...prev];
+      updated[nextIndex] = pagination.nextCursor!;
+      return updated;
+    });
+    setPageIndex(nextIndex);
+  }, [pagination, pageIndex]);
+
+  const goToPrevPage = useCallback(() => {
+    if (pageIndex <= 0) return;
+    setPageIndex(pageIndex - 1);
+  }, [pageIndex]);
 
   const isLoading = yearsLoading || enrollmentsLoading;
 
@@ -68,7 +92,7 @@ export default function EnrollmentsPage() {
               value={schoolYearId || effectiveYearId}
               onChange={(e) => {
                 setSchoolYearId(e.target.value);
-                setPage(1);
+                resetPagination();
               }}
               className="h-8 w-full sm:w-48 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
@@ -83,7 +107,7 @@ export default function EnrollmentsPage() {
               value={classId}
               onChange={(e) => {
                 setClassId(e.target.value);
-                setPage(1);
+                resetPagination();
               }}
               className="h-8 w-full sm:w-48 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
@@ -151,10 +175,14 @@ export default function EnrollmentsPage() {
               </TableBody>
             </Table>
             {pagination && (
-              <Pagination
-                page={pagination.page}
-                totalPages={pagination.totalPages}
-                onPageChange={setPage}
+              <CursorPagination
+                hasPreviousPage={pageIndex > 0}
+                hasNextPage={pagination.hasNextPage}
+                onPrevious={goToPrevPage}
+                onNext={goToNextPage}
+                totalCount={pagination.totalCount}
+                pageSize={PAGE_SIZE}
+                pageIndex={pageIndex}
               />
             )}
           </CardContent>

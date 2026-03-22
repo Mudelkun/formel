@@ -4,7 +4,7 @@ const listAllPaymentsSchema = z.object({
   query: z.object({
     status: z.enum(['pending', 'completed', 'failed']).optional(),
     search: z.string().optional(),
-    page: z.coerce.number().int().positive().optional().default(1),
+    cursor: z.string().optional(),
     limit: z.coerce.number().int().positive().max(100).optional().default(20),
   }),
 });

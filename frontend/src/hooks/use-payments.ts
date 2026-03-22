@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { toast } from 'sonner';
 import { listAllPayments, getPayment, updatePayment, createPaymentForEnrollment, listPaymentDocuments, uploadPaymentDocument, deletePaymentDocument } from '@/api/payments';
 
-export function usePayments(filters: { status?: string; search?: string; page?: number; limit?: number } = {}) {
+export function usePayments(filters: { status?: string; search?: string; cursor?: string; limit?: number } = {}) {
   return useQuery({
     queryKey: ['payments', 'list', filters],
     queryFn: () => listAllPayments(filters),

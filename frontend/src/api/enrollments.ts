@@ -1,5 +1,5 @@
 import api from './client';
-import type { CreateEnrollmentInput, PaginatedResponse } from '@/types/student';
+import type { CreateEnrollmentInput, CursorPaginatedResponse } from '@/types/student';
 
 export interface Enrollment {
   id: string;
@@ -20,7 +20,7 @@ export async function createEnrollment(input: CreateEnrollmentInput) {
   return data;
 }
 
-export async function listEnrollments(params: { schoolYearId?: string; classId?: string; page?: number; limit?: number } = {}): Promise<PaginatedResponse<Enrollment>> {
+export async function listEnrollments(params: { schoolYearId?: string; classId?: string; cursor?: string; limit?: number } = {}): Promise<CursorPaginatedResponse<Enrollment>> {
   const { data } = await api.get('/enrollments', { params: { limit: 20, ...params } });
   return data;
 }

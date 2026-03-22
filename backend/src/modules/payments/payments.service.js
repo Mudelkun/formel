@@ -1,4 +1,4 @@
-const { eq, and, ilike, or, count, desc } = require('drizzle-orm');
+const { eq, and, ilike, or, count, desc, sql } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { payments } = require('../../db/schema/payments');
 const { paymentDocuments } = require('../../db/schema/paymentDocuments');
@@ -120,7 +120,26 @@ async function updatePayment(id, data, role, userId) {
   return updated;
 }
 
-async function listAllPayments({ status, search, page, limit }) {
+function decodePaymentCursor(cursor) {
+  try {
+    const json = Buffer.from(cursor, 'base64url').toString('utf8');
+    const { ca, id } = JSON.parse(json);
+    if (typeof ca === 'string' && typeof id === 'string') {
+      return { createdAt: ca, id };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function encodePaymentCursor(row) {
+  return Buffer.from(
+    JSON.stringify({ ca: row.createdAt, id: row.id })
+  ).toString('base64url');
+}
+
+async function listAllPayments({ status, search, cursor, limit }) {
   const conditions = [];
 
   // Only show payments from active school year
@@ -135,6 +154,16 @@ async function listAllPayments({ status, search, page, limit }) {
     for (const word of words) {
       const pattern = `%${word}%`;
       conditions.push(or(ilike(students.firstName, pattern), ilike(students.lastName, pattern)));
+    }
+  }
+
+  // Descending order: next page means "older" rows, so use < for cursor
+  if (cursor) {
+    const parsed = decodePaymentCursor(cursor);
+    if (parsed) {
+      conditions.push(
+        sql`(${payments.createdAt}, ${payments.id}) < (${parsed.createdAt}, ${parsed.id})`
+      );
     }
   }
 
@@ -157,29 +186,30 @@ async function listAllPayments({ status, search, page, limit }) {
     schoolYear: schoolYears.year,
   };
 
-  const [data, [{ total: totalCount }]] = await Promise.all([
-    db.select(selectFields)
+  const baseJoins = (qb) =>
+    qb
       .from(payments)
       .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
       .innerJoin(students, eq(enrollments.studentId, students.id))
       .innerJoin(classes, eq(enrollments.classId, classes.id))
-      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id));
+
+  const [rows, [{ total: totalCount }]] = await Promise.all([
+    baseJoins(db.select(selectFields))
       .where(where)
-      .limit(limit)
-      .offset((page - 1) * limit)
-      .orderBy(desc(payments.createdAt)),
-    db.select({ total: count() })
-      .from(payments)
-      .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
-      .innerJoin(students, eq(enrollments.studentId, students.id))
-      .innerJoin(classes, eq(enrollments.classId, classes.id))
-      .innerJoin(schoolYears, eq(enrollments.schoolYearId, schoolYears.id))
+      .limit(limit + 1)
+      .orderBy(desc(payments.createdAt), desc(payments.id)),
+    baseJoins(db.select({ total: count() }))
       .where(where),
   ]);
 
+  const hasNextPage = rows.length > limit;
+  const data = hasNextPage ? rows.slice(0, limit) : rows;
+  const nextCursor = hasNextPage ? encodePaymentCursor(data[data.length - 1]) : null;
+
   return {
     data,
-    pagination: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) },
+    pagination: { limit, totalCount, nextCursor, hasNextPage },
   };
 }
 

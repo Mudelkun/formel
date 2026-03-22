@@ -7,7 +7,7 @@ const listAuditLogsSchema = z.object({
     action: z.string().optional(),
     startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    page: z.coerce.number().int().positive().optional().default(1),
+    cursor: z.string().optional(),
     limit: z.coerce.number().int().positive().max(100).optional().default(20),
   }),
 });

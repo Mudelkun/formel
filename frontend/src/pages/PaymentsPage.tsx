@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/auth';
 import { usePayments } from '@/hooks/use-payments';
 import { useCurrency } from '@/hooks/use-currency';
@@ -7,7 +7,7 @@ import CreatePaymentDialog from '@/components/payments/CreatePaymentDialog';
 import PaymentDetailDialog from '@/components/payments/PaymentDetailDialog';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
-import Pagination from '@/components/Pagination';
+import CursorPagination from '@/components/CursorPagination';
 import EmptyState from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,39 +34,64 @@ export default function PaymentsPage() {
   const { user } = useAuth();
   const { formatAmount } = useCurrency();
 
+  const PAGE_SIZE = 20;
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [page, setPage] = useState(1);
+  const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined]);
+  const [pageIndex, setPageIndex] = useState(0);
+
+  const resetPagination = useCallback(() => {
+    setCursorStack([undefined]);
+    setPageIndex(0);
+  }, []);
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1);
+      resetPagination();
     }, 300);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, resetPagination]);
 
-  // Reset page on filter change
+  // Reset pagination on filter change
   useEffect(() => {
-    setPage(1);
-  }, [statusFilter]);
+    resetPagination();
+  }, [statusFilter, resetPagination]);
+
+  const currentCursor = cursorStack[pageIndex];
 
   const { data, isLoading } = usePayments({
     search: debouncedSearch || undefined,
     status: statusFilter || undefined,
-    page,
-    limit: 20,
+    cursor: currentCursor,
+    limit: PAGE_SIZE,
   });
 
   const { data: summary } = useFinanceSummary();
 
   const payments = data?.data ?? [];
   const pagination = data?.pagination;
+
+  const goToNextPage = useCallback(() => {
+    if (!pagination?.nextCursor) return;
+    const nextIndex = pageIndex + 1;
+    setCursorStack((prev) => {
+      const updated = [...prev];
+      updated[nextIndex] = pagination.nextCursor!;
+      return updated;
+    });
+    setPageIndex(nextIndex);
+  }, [pagination, pageIndex]);
+
+  const goToPrevPage = useCallback(() => {
+    if (pageIndex <= 0) return;
+    setPageIndex(pageIndex - 1);
+  }, [pageIndex]);
 
   const canCreate = user?.role === 'admin' || user?.role === 'secretary';
 
@@ -206,10 +231,14 @@ export default function PaymentsPage() {
                 </TableBody>
               </Table>
               {pagination && (
-                <Pagination
-                  page={pagination.page}
-                  totalPages={pagination.totalPages}
-                  onPageChange={setPage}
+                <CursorPagination
+                  hasPreviousPage={pageIndex > 0}
+                  hasNextPage={pagination.hasNextPage}
+                  onPrevious={goToPrevPage}
+                  onNext={goToNextPage}
+                  totalCount={pagination.totalCount}
+                  pageSize={PAGE_SIZE}
+                  pageIndex={pageIndex}
                 />
               )}
             </>

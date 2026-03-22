@@ -92,6 +92,16 @@ export interface PaginatedResponse<T> {
   };
 }
 
+export interface CursorPaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    limit: number;
+    totalCount: number;
+    nextCursor: string | null;
+    hasNextPage: boolean;
+  };
+}
+
 export interface ClassItem {
   id: string;
   name: string;

@@ -1,4 +1,4 @@
-const { eq, ilike, or, and, sql, count } = require('drizzle-orm');
+const { eq, ilike, or, and, sql, count, gt, inArray } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { students } = require('../../db/schema/students');
 const { contacts } = require('../../db/schema/contacts');
@@ -18,7 +18,26 @@ function buildNameConditions(name) {
   });
 }
 
-async function listStudents({ name, status, classId, scholarship, page, limit }) {
+function decodeCursor(cursor) {
+  try {
+    const json = Buffer.from(cursor, 'base64url').toString('utf8');
+    const { ln, fn, id } = JSON.parse(json);
+    if (typeof ln === 'string' && typeof fn === 'string' && typeof id === 'string') {
+      return { lastName: ln, firstName: fn, id };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function encodeCursor(student) {
+  return Buffer.from(
+    JSON.stringify({ ln: student.lastName, fn: student.firstName, id: student.id })
+  ).toString('base64url');
+}
+
+async function listStudents({ name, status, classId, scholarship, cursor, limit }) {
   const conditions = [];
 
   if (name) {
@@ -33,6 +52,16 @@ async function listStudents({ name, status, classId, scholarship, page, limit })
     conditions.push(eq(students.scholarshipRecipient, true));
   } else if (scholarship === 'false') {
     conditions.push(eq(students.scholarshipRecipient, false));
+  }
+
+  // Cursor-based keyset condition: (lastName, firstName, id) > (cursorLN, cursorFN, cursorID)
+  if (cursor) {
+    const parsed = decodeCursor(cursor);
+    if (parsed) {
+      conditions.push(
+        sql`(${students.lastName}, ${students.firstName}, ${students.id}) > (${parsed.lastName}, ${parsed.firstName}, ${parsed.id})`
+      );
+    }
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -54,70 +83,42 @@ async function listStudents({ name, status, classId, scholarship, page, limit })
     gradeLevel: classes.gradeLevel,
   };
 
-  let query;
-  let countQuery;
-
-  if (classId) {
-    // Filter by specific class in active school year
-    query = db
-      .select(selectFields)
+  const baseJoins = (qb) =>
+    qb
       .from(students)
       .innerJoin(enrollments, eq(enrollments.studentId, students.id))
       .innerJoin(classes, eq(enrollments.classId, classes.id))
       .innerJoin(schoolYears, and(
         eq(enrollments.schoolYearId, schoolYears.id),
         eq(schoolYears.isActive, true)
-      ))
-      .where(and(eq(enrollments.classId, classId), where))
-      .limit(limit)
-      .offset((page - 1) * limit)
-      .orderBy(students.lastName, students.firstName);
+      ));
 
-    countQuery = db
-      .select({ total: count() })
-      .from(students)
-      .innerJoin(enrollments, eq(enrollments.studentId, students.id))
-      .innerJoin(schoolYears, and(
-        eq(enrollments.schoolYearId, schoolYears.id),
-        eq(schoolYears.isActive, true)
-      ))
-      .where(and(eq(enrollments.classId, classId), where));
-  } else {
-    // INNER JOIN to only show students enrolled in the active school year
-    query = db
-      .select(selectFields)
-      .from(students)
-      .innerJoin(enrollments, eq(enrollments.studentId, students.id))
-      .innerJoin(classes, eq(enrollments.classId, classes.id))
-      .innerJoin(schoolYears, and(
-        eq(enrollments.schoolYearId, schoolYears.id),
-        eq(schoolYears.isActive, true)
-      ))
-      .where(where)
-      .limit(limit)
-      .offset((page - 1) * limit)
-      .orderBy(students.lastName, students.firstName);
+  const effectiveWhere = classId
+    ? and(eq(enrollments.classId, classId), where)
+    : where;
 
-    countQuery = db
-      .select({ total: count() })
-      .from(students)
-      .innerJoin(enrollments, eq(enrollments.studentId, students.id))
-      .innerJoin(schoolYears, and(
-        eq(enrollments.schoolYearId, schoolYears.id),
-        eq(schoolYears.isActive, true)
-      ))
-      .where(where);
-  }
+  // Fetch limit + 1 to determine if there's a next page
+  const query = baseJoins(db.select(selectFields))
+    .where(effectiveWhere)
+    .limit(limit + 1)
+    .orderBy(students.lastName, students.firstName, students.id);
 
-  const [data, [{ total: totalCount }]] = await Promise.all([query, countQuery]);
+  const countQuery = baseJoins(db.select({ total: count() }))
+    .where(effectiveWhere);
+
+  const [rows, [{ total: totalCount }]] = await Promise.all([query, countQuery]);
+
+  const hasNextPage = rows.length > limit;
+  const data = hasNextPage ? rows.slice(0, limit) : rows;
+  const nextCursor = hasNextPage ? encodeCursor(data[data.length - 1]) : null;
 
   return {
     data,
     pagination: {
-      page,
       limit,
       totalCount,
-      totalPages: Math.ceil(totalCount / limit),
+      nextCursor,
+      hasNextPage,
     },
   };
 }
@@ -241,26 +242,33 @@ async function remapScholarshipsForClassGroup(enrollmentId, oldClassId, newClass
   const oldIdToNumber = new Map(oldVersements.map((v) => [v.id, v.number]));
   const newNumberToVersement = new Map(newVersements.map((v) => [v.number, v]));
 
+  // Partition annulations into updates and deletes for batch operations
+  const toDelete = [];
+  const updateCases = [];
+
   for (const annul of annulations) {
     const versementNumber = oldIdToNumber.get(annul.targetVersementId);
     if (versementNumber == null) continue;
 
     const newVersement = newNumberToVersement.get(versementNumber);
     if (newVersement) {
-      // Re-map to new versement ID and update fixedAmount to match new versement's amount
-      await db
-        .update(scholarships)
-        .set({
-          targetVersementId: newVersement.id,
-          fixedAmount: String(newVersement.amount),
-          updatedAt: new Date(),
-        })
-        .where(eq(scholarships.id, annul.id));
+      updateCases.push({ id: annul.id, targetVersementId: newVersement.id, fixedAmount: String(newVersement.amount) });
     } else {
-      // No matching versement in new group — remove the annulation
-      await db.delete(scholarships).where(eq(scholarships.id, annul.id));
+      toDelete.push(annul.id);
     }
   }
+
+  // Batch delete annulations with no matching versement
+  if (toDelete.length > 0) {
+    await db.delete(scholarships).where(inArray(scholarships.id, toDelete));
+  }
+
+  // Update each remapped scholarship (few per student, typically 2-5)
+  await Promise.all(updateCases.map((u) =>
+    db.update(scholarships)
+      .set({ targetVersementId: u.targetVersementId, fixedAmount: u.fixedAmount, updatedAt: new Date() })
+      .where(eq(scholarships.id, u.id))
+  ));
 }
 
 async function promoteStudent(studentId) {

@@ -5,7 +5,7 @@ import type {
   Contact,
   StudentDocument,
   BalanceResponse,
-  PaginatedResponse,
+  CursorPaginatedResponse,
   CreateStudentInput,
   UpdateStudentInput,
   CreateContactInput,
@@ -19,11 +19,11 @@ export interface StudentFilters {
   status?: string;
   classId?: string;
   scholarship?: string;
-  page?: number;
+  cursor?: string;
   limit?: number;
 }
 
-export async function listStudents(params: StudentFilters = {}): Promise<PaginatedResponse<Student>> {
+export async function listStudents(params: StudentFilters = {}): Promise<CursorPaginatedResponse<Student>> {
   const { data } = await api.get('/students', { params });
   return data;
 }

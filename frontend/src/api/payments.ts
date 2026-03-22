@@ -1,5 +1,5 @@
 import api from './client';
-import type { PaginatedResponse } from '@/types/student';
+import type { CursorPaginatedResponse } from '@/types/student';
 
 export interface Payment {
   id: string;
@@ -26,7 +26,7 @@ export interface PaymentDocument {
   createdAt: string;
 }
 
-export async function listAllPayments(params: { status?: string; search?: string; page?: number; limit?: number } = {}): Promise<PaginatedResponse<Payment>> {
+export async function listAllPayments(params: { status?: string; search?: string; cursor?: string; limit?: number } = {}): Promise<CursorPaginatedResponse<Payment>> {
   const { data } = await api.get('/payments', { params: { limit: 20, ...params } });
   return data;
 }

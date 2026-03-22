@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/auth';
 import { useStudents, useClasses } from '@/hooks/use-students';
 import PageHeader from '@/components/PageHeader';
-import Pagination from '@/components/Pagination';
+import CursorPagination from '@/components/CursorPagination';
 import StudentStatusBadge from '@/components/students/StudentStatusBadge';
 import EmptyState from '@/components/EmptyState';
 import CreateStudentDialog from '@/components/students/CreateStudentDialog';
@@ -21,46 +21,72 @@ import {
 } from '@/components/ui/table';
 import { Plus, Search, GraduationCap, Award, RefreshCw } from 'lucide-react';
 
+const PAGE_SIZE = 20;
+
 export default function StudentsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const canCreate = user?.role === 'admin' || user?.role === 'secretary';
-
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [scholarshipFilter, setScholarshipFilter] = useState('');
-  const [page, setPage] = useState(1);
+  // Cursor stack: [undefined, cursor1, cursor2, ...] — index 0 = first page (no cursor)
+  const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined]);
+  const [pageIndex, setPageIndex] = useState(0);
+
+  const resetPagination = useCallback(() => {
+    setCursorStack([undefined]);
+    setPageIndex(0);
+  }, []);
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1);
+      resetPagination();
     }, 300);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, resetPagination]);
 
-  // Reset page on filter change
+  // Reset pagination on filter change
   useEffect(() => {
-    setPage(1);
-  }, [statusFilter, classFilter, scholarshipFilter]);
+    resetPagination();
+  }, [statusFilter, classFilter, scholarshipFilter, resetPagination]);
+
+  const currentCursor = cursorStack[pageIndex];
 
   const { data, isLoading, refetch, isFetching } = useStudents({
     name: debouncedSearch || undefined,
     status: statusFilter || undefined,
     classId: classFilter || undefined,
     scholarship: scholarshipFilter || undefined,
-    page,
-    limit: 20,
+    cursor: currentCursor,
+    limit: PAGE_SIZE,
   });
 
   const { data: classesData } = useClasses();
   const classes = classesData?.data ?? [];
   const students = data?.data ?? [];
   const pagination = data?.pagination;
+
+  const goToNextPage = useCallback(() => {
+    if (!pagination?.nextCursor) return;
+    const nextIndex = pageIndex + 1;
+    setCursorStack((prev) => {
+      const updated = [...prev];
+      updated[nextIndex] = pagination.nextCursor!;
+      return updated;
+    });
+    setPageIndex(nextIndex);
+  }, [pagination, pageIndex]);
+
+  const goToPrevPage = useCallback(() => {
+    if (pageIndex <= 0) return;
+    setPageIndex(pageIndex - 1);
+  }, [pageIndex]);
 
   return (
     <>
@@ -207,10 +233,14 @@ export default function StudentsPage() {
                 </TableBody>
               </Table>
               {pagination && (
-                <Pagination
-                  page={pagination.page}
-                  totalPages={pagination.totalPages}
-                  onPageChange={setPage}
+                <CursorPagination
+                  hasPreviousPage={pageIndex > 0}
+                  hasNextPage={pagination.hasNextPage}
+                  onPrevious={goToPrevPage}
+                  onNext={goToNextPage}
+                  totalCount={pagination.totalCount}
+                  pageSize={PAGE_SIZE}
+                  pageIndex={pageIndex}
                 />
               )}
             </>
