@@ -2,12 +2,12 @@
 
 ## when creating a student
 
-When creating a student The modal should also include aptional field for contact information about a the student and also be able to upload his document.
+When creating a student The modal should also include aptional field for contact information about the student and also be able to upload his document.
 We curenly just get basic information only. Even tho those information are not required in orther to create the student, we should still ask for them to encaurage the user to do it now.
 
 ### When updating students
 
-we should alwaz ensure that we can edit any information about a student after creation
+we should alwas ensure that we can edit any information about a student after creation
 
 ### for scholarship
 
@@ -32,7 +32,7 @@ This section should show the history of recorded payment for this student for th
 
  - A promote button
 
-This button should move the student's grade from the current to the next available grade by overwriting incription or deleting current incription and vcreate a new one..
+This button should move the student's grade from the current to the next available grade by overwriting incription or deleting current incription and recreating a new one..
 
  - A downgrade button
 
@@ -43,7 +43,4 @@ This button is use when a student repeat a grade. If we promoted it befor using 
 
 Right now when we promote a student from one grade to another the Eleves page shows duplicate students -- we should change that and show the student that are enrolled
 Since a student cannot exist without an enrolement. If we switch to a diffrent year but there wasn't any students enroled for that year, than it should be blank unless we promot previous year's student first.
-
-
-# School years (Annee scolaire)
 

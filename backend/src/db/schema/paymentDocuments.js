@@ -1,4 +1,4 @@
-const { pgTable, uuid, text, timestamp } = require('drizzle-orm/pg-core');
+const { pgTable, uuid, text, timestamp, index } = require('drizzle-orm/pg-core');
 const { payments } = require('./payments');
 
 const paymentDocuments = pgTable('payment_documents', {
@@ -7,6 +7,8 @@ const paymentDocuments = pgTable('payment_documents', {
   documentUrl: text('document_url').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at'),
-});
+}, (table) => [
+  index().on(table.paymentId),
+]);
 
 module.exports = { paymentDocuments };

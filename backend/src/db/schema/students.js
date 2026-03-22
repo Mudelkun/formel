@@ -1,4 +1,4 @@
-const { pgTable, uuid, varchar, text, date, boolean, timestamp } = require('drizzle-orm/pg-core');
+const { pgTable, uuid, varchar, text, date, boolean, timestamp, index } = require('drizzle-orm/pg-core');
 
 const students = pgTable('students', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -13,6 +13,10 @@ const students = pgTable('students', {
   profilePhotoUrl: text('profile_photo_url'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at'),
-});
+}, (table) => [
+  index().on(table.status),
+  index().on(table.scholarshipRecipient),
+  index().on(table.lastName, table.firstName),
+]);
 
 module.exports = { students };

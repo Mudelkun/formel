@@ -1,4 +1,4 @@
-const { pgTable, uuid, varchar, boolean, timestamp } = require('drizzle-orm/pg-core');
+const { pgTable, uuid, varchar, boolean, timestamp, index } = require('drizzle-orm/pg-core');
 const { students } = require('./students');
 
 const contacts = pgTable('contacts', {
@@ -12,6 +12,8 @@ const contacts = pgTable('contacts', {
   isPrimary: boolean('is_primary').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at'),
-});
+}, (table) => [
+  index().on(table.studentId),
+]);
 
 module.exports = { contacts };

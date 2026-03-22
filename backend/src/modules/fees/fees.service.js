@@ -82,23 +82,21 @@ async function createFees(classGroupId, data, userId) {
       })
       .returning();
 
-    // Create versements
-    const versementRecords = [];
-    for (const v of data.versements) {
-      const [created] = await tx
-        .insert(versements)
-        .values({
-          classGroupId,
-          schoolYearId: data.schoolYearId,
-          number: v.number,
-          name: v.name,
-          amount: v.amount,
-          dueDate: v.dueDate,
-          updatedAt: new Date(),
-        })
-        .returning();
-      versementRecords.push(created);
-    }
+    // Create versements (batch insert)
+    const versementRecords = data.versements.length > 0
+      ? await tx
+          .insert(versements)
+          .values(data.versements.map((v) => ({
+            classGroupId,
+            schoolYearId: data.schoolYearId,
+            number: v.number,
+            name: v.name,
+            amount: v.amount,
+            dueDate: v.dueDate,
+            updatedAt: new Date(),
+          })))
+          .returning()
+      : [];
 
     return { bookFee: config.bookFee, feeConfigId: config.id, versements: versementRecords };
   });
@@ -148,23 +146,21 @@ async function updateFees(classGroupId, data, userId) {
         eq(versements.schoolYearId, data.schoolYearId),
       ));
 
-    // Insert new versements
-    const versementRecords = [];
-    for (const v of data.versements) {
-      const [created] = await tx
-        .insert(versements)
-        .values({
-          classGroupId,
-          schoolYearId: data.schoolYearId,
-          number: v.number,
-          name: v.name,
-          amount: v.amount,
-          dueDate: v.dueDate,
-          updatedAt: new Date(),
-        })
-        .returning();
-      versementRecords.push(created);
-    }
+    // Insert new versements (batch insert)
+    const versementRecords = data.versements.length > 0
+      ? await tx
+          .insert(versements)
+          .values(data.versements.map((v) => ({
+            classGroupId,
+            schoolYearId: data.schoolYearId,
+            number: v.number,
+            name: v.name,
+            amount: v.amount,
+            dueDate: v.dueDate,
+            updatedAt: new Date(),
+          })))
+          .returning()
+      : [];
 
     return { bookFee: config.bookFee, feeConfigId: config.id, versements: versementRecords };
   });

@@ -1,4 +1,4 @@
-const { eq, and, sum, count, gte, desc } = require('drizzle-orm');
+const { eq, and, sum, count, gte, lte, desc, inArray, sql } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { enrollments } = require('../../db/schema/enrollments');
 const { classes } = require('../../db/schema/classes');
@@ -40,10 +40,12 @@ async function getSummary({ classId, classGroupId }) {
   const studentCount = enrollmentData.length;
 
   if (studentCount === 0) {
-    return { total_expected: 0, total_collected: 0, total_remaining: 0, student_count: 0 };
+    return { total_expected: 0, total_collected: 0, total_pending: 0, total_remaining: 0, student_count: 0 };
   }
 
-  // Cache versement totals + bookFees per classGroup (returned separately)
+  const enrollmentIds = enrollmentData.map((e) => e.enrollmentId);
+
+  // Cache versement totals + bookFees per classGroup
   const groupTuitionCache = {};
   async function getGroupTuition(cgId) {
     if (groupTuitionCache[cgId]) return groupTuitionCache[cgId];
@@ -70,8 +72,9 @@ async function getSummary({ classId, classGroupId }) {
     return groupTuitionCache[cgId];
   }
 
-  // Get all scholarships and group by enrollmentId
-  const allScholarships = await db.select().from(scholarships);
+  // FIX #2: Filter scholarships by relevant enrollment IDs only
+  const allScholarships = await db.select().from(scholarships)
+    .where(inArray(scholarships.enrollmentId, enrollmentIds));
   const scholarshipMap = {};
   for (const s of allScholarships) {
     if (!scholarshipMap[s.enrollmentId]) scholarshipMap[s.enrollmentId] = [];
@@ -86,29 +89,27 @@ async function getSummary({ classId, classGroupId }) {
     totalExpected += total - discount;
   }
 
-  // Compute total collected (completed payments) and total pending
+  // FIX #1: Single GROUP BY query for all payment totals instead of N+1
+  const paymentTotals = await db
+    .select({
+      enrollmentId: payments.enrollmentId,
+      status: payments.status,
+      total: sum(payments.amount),
+    })
+    .from(payments)
+    .where(and(
+      inArray(payments.enrollmentId, enrollmentIds),
+      inArray(payments.status, ['completed', 'pending']),
+    ))
+    .groupBy(payments.enrollmentId, payments.status);
+
+  // Build lookup map
   let totalCollected = 0;
   let totalPending = 0;
-  const enrollmentIds = enrollmentData.map((e) => e.enrollmentId);
-
-  for (const e of enrollmentData) {
-    const [{ paid }] = await db
-      .select({ paid: sum(payments.amount) })
-      .from(payments)
-      .where(and(
-        eq(payments.enrollmentId, e.enrollmentId),
-        eq(payments.status, 'completed'),
-      ));
-    totalCollected += Number(paid || 0);
-
-    const [{ pending }] = await db
-      .select({ pending: sum(payments.amount) })
-      .from(payments)
-      .where(and(
-        eq(payments.enrollmentId, e.enrollmentId),
-        eq(payments.status, 'pending'),
-      ));
-    totalPending += Number(pending || 0);
+  for (const row of paymentTotals) {
+    const amount = Number(row.total || 0);
+    if (row.status === 'completed') totalCollected += amount;
+    else if (row.status === 'pending') totalPending += amount;
   }
 
   return {
@@ -169,8 +170,11 @@ async function getVersementFinance(versementId) {
     return { versement_expected: 0, total_collected: 0, total_remaining: 0, student_count: 0 };
   }
 
-  // Get all scholarships and group by enrollmentId
-  const allScholarships = await db.select().from(scholarships);
+  const enrollmentIds = enrollmentData.map((e) => e.enrollmentId);
+
+  // FIX #2: Filter scholarships by relevant enrollment IDs only
+  const allScholarships = await db.select().from(scholarships)
+    .where(inArray(scholarships.enrollmentId, enrollmentIds));
   const scholarshipMap = {};
   for (const s of allScholarships) {
     if (!scholarshipMap[s.enrollmentId]) scholarshipMap[s.enrollmentId] = [];
@@ -182,12 +186,31 @@ async function getVersementFinance(versementId) {
   let versementExpected = 0;
 
   for (const e of enrollmentData) {
-    // Proportional discount applies only to versements
     const { proportionalDiscount, versementAnnulations } = computeDiscounts(scholarshipMap[e.enrollmentId] || [], versementsTotal);
     const discountRatio = versementsTotal > 0 ? Math.min(proportionalDiscount, versementsTotal) / versementsTotal : 0;
     const annulation = versementAnnulations.get(versement.id) || 0;
     const effectiveAmount = Math.max(0, versementAmount * (1 - discountRatio) - annulation);
     versementExpected += effectiveAmount;
+  }
+
+  // FIX #3: Single batch query for all non-book payments instead of N+1
+  const nonBookPaymentTotals = await db
+    .select({
+      enrollmentId: payments.enrollmentId,
+      total: sum(payments.amount),
+    })
+    .from(payments)
+    .where(and(
+      inArray(payments.enrollmentId, enrollmentIds),
+      eq(payments.status, 'completed'),
+      eq(payments.isBookPayment, false),
+    ))
+    .groupBy(payments.enrollmentId);
+
+  // Build payment lookup map
+  const paidByEnrollment = {};
+  for (const row of nonBookPaymentTotals) {
+    paidByEnrollment[row.enrollmentId] = Number(row.total || 0);
   }
 
   // Compute how much has been collected toward this specific versement
@@ -197,16 +220,7 @@ async function getVersementFinance(versementId) {
     const { proportionalDiscount, versementAnnulations } = computeDiscounts(scholarshipMap[e.enrollmentId] || [], versementsTotal);
     const discountRatio = versementsTotal > 0 ? Math.min(proportionalDiscount, versementsTotal) / versementsTotal : 0;
 
-    const [{ nonBookPaid }] = await db
-      .select({ nonBookPaid: sum(payments.amount) })
-      .from(payments)
-      .where(and(
-        eq(payments.enrollmentId, e.enrollmentId),
-        eq(payments.status, 'completed'),
-        eq(payments.isBookPayment, false),
-      ));
-
-    let remaining = Number(nonBookPaid || 0);
+    let remaining = paidByEnrollment[e.enrollmentId] || 0;
 
     for (const v of allVersements) {
       const annulation = versementAnnulations.get(v.id) || 0;
@@ -247,84 +261,88 @@ async function getDashboardStats() {
     };
   }
 
-  // Total students enrolled in active year
-  const [{ studentCount }] = await db
-    .select({ studentCount: count() })
-    .from(enrollments)
-    .where(eq(enrollments.schoolYearId, activeYear.id));
-
-  // Total classes
-  const [{ classCount }] = await db
-    .select({ classCount: count() })
-    .from(classes);
-
-  // Payments this month (completed)
   const now = new Date();
   const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const [{ monthPayments }] = await db
-    .select({ monthPayments: sum(payments.amount) })
-    .from(payments)
-    .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
-    .where(and(
-      eq(enrollments.schoolYearId, activeYear.id),
-      eq(payments.status, 'completed'),
-      gte(payments.paymentDate, firstOfMonth),
-    ));
-
-  // Overdue versements count (versements with dueDate < today)
   const today = now.toISOString().split('T')[0];
-  const overdueList = await db
-    .select({ id: versements.id })
-    .from(versements)
-    .where(and(
-      eq(versements.schoolYearId, activeYear.id),
-      gte(versements.dueDate, '2000-01-01'), // just to use the column
-    ));
-  const overdueVersements = overdueList.filter((v) => v.dueDate < today).length;
 
-  // Recent payments (last 5 completed)
-  const recentPayments = await db
-    .select({
-      id: payments.id,
-      amount: payments.amount,
-      paymentDate: payments.paymentDate,
-      studentFirstName: students.firstName,
-      studentLastName: students.lastName,
-      className: classes.name,
-    })
-    .from(payments)
-    .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
-    .innerJoin(students, eq(enrollments.studentId, students.id))
-    .innerJoin(classes, eq(enrollments.classId, classes.id))
-    .where(and(
-      eq(enrollments.schoolYearId, activeYear.id),
-      eq(payments.status, 'completed'),
-    ))
-    .orderBy(desc(payments.createdAt))
-    .limit(5);
+  // FIX #4: Run all independent queries in parallel
+  const [
+    [{ studentCount }],
+    [{ classCount }],
+    [{ monthPayments }],
+    [{ overdueCount }],
+    recentPayments,
+    upcomingDueDates,
+  ] = await Promise.all([
+    // Total students enrolled in active year
+    db.select({ studentCount: count() })
+      .from(enrollments)
+      .where(eq(enrollments.schoolYearId, activeYear.id)),
 
-  // Upcoming due dates (next 3 versements with dueDate >= today)
-  const upcomingDueDates = await db
-    .select({
-      id: versements.id,
-      name: versements.name,
-      amount: versements.amount,
-      dueDate: versements.dueDate,
-      classGroupId: versements.classGroupId,
-    })
-    .from(versements)
-    .where(and(
-      eq(versements.schoolYearId, activeYear.id),
-      gte(versements.dueDate, today),
-    ))
-    .orderBy(versements.dueDate)
-    .limit(3);
+    // Total classes
+    db.select({ classCount: count() })
+      .from(classes),
+
+    // Payments this month (completed)
+    db.select({ monthPayments: sum(payments.amount) })
+      .from(payments)
+      .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
+      .where(and(
+        eq(enrollments.schoolYearId, activeYear.id),
+        eq(payments.status, 'completed'),
+        gte(payments.paymentDate, firstOfMonth),
+      )),
+
+    // FIX #9: Count overdue versements directly in SQL instead of loading + filtering in JS
+    db.select({ overdueCount: count() })
+      .from(versements)
+      .where(and(
+        eq(versements.schoolYearId, activeYear.id),
+        lte(versements.dueDate, today),
+      )),
+
+    // Recent payments (last 5 completed)
+    db.select({
+        id: payments.id,
+        amount: payments.amount,
+        paymentDate: payments.paymentDate,
+        studentFirstName: students.firstName,
+        studentLastName: students.lastName,
+        className: classes.name,
+      })
+      .from(payments)
+      .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
+      .innerJoin(students, eq(enrollments.studentId, students.id))
+      .innerJoin(classes, eq(enrollments.classId, classes.id))
+      .where(and(
+        eq(enrollments.schoolYearId, activeYear.id),
+        eq(payments.status, 'completed'),
+      ))
+      .orderBy(desc(payments.createdAt))
+      .limit(5),
+
+    // Upcoming due dates (next 3 versements with dueDate >= today)
+    db.select({
+        id: versements.id,
+        name: versements.name,
+        amount: versements.amount,
+        dueDate: versements.dueDate,
+        classGroupId: versements.classGroupId,
+      })
+      .from(versements)
+      .where(and(
+        eq(versements.schoolYearId, activeYear.id),
+        gte(versements.dueDate, today),
+      ))
+      .orderBy(versements.dueDate)
+      .limit(3),
+  ]);
 
   return {
     totalStudents: studentCount,
     totalClasses: classCount,
     paymentsThisMonth: Number(monthPayments || 0),
-    overdueVersements,
+    overdueVersements: overdueCount,
     recentPayments,
     upcomingDueDates,
   };

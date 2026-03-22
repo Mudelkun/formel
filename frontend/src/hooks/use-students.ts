@@ -28,6 +28,10 @@ import type {
   CreateEnrollmentInput,
 } from '@/types/student';
 
+const STALE_30S = 30 * 1000;
+const STALE_1M = 60 * 1000;
+const STALE_5M = 5 * 60 * 1000;
+
 // ── Students ──────────────────────────────────────────────
 
 export function useStudents(filters: StudentFilters = {}) {
@@ -35,6 +39,7 @@ export function useStudents(filters: StudentFilters = {}) {
     queryKey: ['students', 'list', filters],
     queryFn: () => listStudents(filters),
     placeholderData: keepPreviousData,
+    staleTime: STALE_30S,
   });
 }
 
@@ -43,6 +48,7 @@ export function useStudent(id: string) {
     queryKey: ['students', 'detail', id],
     queryFn: () => getStudent(id),
     enabled: !!id,
+    staleTime: STALE_1M,
   });
 }
 
@@ -98,6 +104,7 @@ export function useStudentDocuments(studentId: string) {
     queryKey: ['students', studentId, 'documents'],
     queryFn: () => listDocuments(studentId),
     enabled: !!studentId,
+    staleTime: STALE_5M,
   });
 }
 
@@ -182,6 +189,7 @@ export function useStudentBalance(studentId: string) {
     queryKey: ['students', studentId, 'balance'],
     queryFn: () => getBalance(studentId),
     enabled: !!studentId,
+    staleTime: STALE_30S,
   });
 }
 
@@ -191,6 +199,7 @@ export function useClasses() {
   return useQuery({
     queryKey: ['classes', 'list'],
     queryFn: () => listClasses(),
+    staleTime: STALE_5M,
   });
 }
 
@@ -198,6 +207,7 @@ export function useSchoolYears() {
   return useQuery({
     queryKey: ['school-years', 'list'],
     queryFn: () => listSchoolYears(),
+    staleTime: STALE_5M,
   });
 }
 
@@ -223,8 +233,9 @@ export function usePromoteStudent(id: string) {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['students', 'detail', id] });
       queryClient.invalidateQueries({ queryKey: ['students', 'list'] });
-      queryClient.invalidateQueries({ queryKey: ['students', 'balance', id] });
-      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['students', id, 'balance'] });
+      queryClient.invalidateQueries({ queryKey: ['enrollments', 'scholarships'] });
+      queryClient.invalidateQueries({ queryKey: ['finance'] });
       toast.success(`Élève promu en ${result.className}`);
     },
     onError: (err: any) => {
@@ -240,8 +251,9 @@ export function useDowngradeStudent(id: string) {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['students', 'detail', id] });
       queryClient.invalidateQueries({ queryKey: ['students', 'list'] });
-      queryClient.invalidateQueries({ queryKey: ['students', 'balance', id] });
-      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['students', id, 'balance'] });
+      queryClient.invalidateQueries({ queryKey: ['enrollments', 'scholarships'] });
+      queryClient.invalidateQueries({ queryKey: ['finance'] });
       toast.success(`Élève rétrogradé en ${result.className}`);
     },
     onError: (err: any) => {
@@ -257,6 +269,7 @@ export function useScholarships(enrollmentId: string | undefined) {
     queryKey: ['enrollments', enrollmentId, 'scholarships'],
     queryFn: () => listScholarships(enrollmentId!),
     enabled: !!enrollmentId,
+    staleTime: STALE_1M,
   });
 }
 
@@ -265,9 +278,10 @@ export function useCreateScholarship() {
   return useMutation({
     mutationFn: ({ enrollmentId, data }: { enrollmentId: string; data: CreateScholarshipInput }) =>
       createScholarship(enrollmentId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['students'] });
-      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments', variables.enrollmentId, 'scholarships'] });
+      queryClient.invalidateQueries({ queryKey: ['students', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['finance'] });
       toast.success('Bourse ajoutée');
     },
   });
@@ -280,7 +294,8 @@ export function useUpdateScholarship(enrollmentId: string | undefined) {
       updateScholarship(scholarshipId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrollments', enrollmentId, 'scholarships'] });
-      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['students', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['finance'] });
       toast.success('Bourse mise à jour');
     },
     onError: () => {
@@ -295,7 +310,8 @@ export function useDeleteScholarship(enrollmentId: string | undefined) {
     mutationFn: (scholarshipId: string) => deleteScholarship(scholarshipId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrollments', enrollmentId, 'scholarships'] });
-      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['students', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['finance'] });
       toast.success('Bourse supprimée');
     },
     onError: () => {
@@ -311,6 +327,7 @@ export function usePayments(enrollmentId: string | undefined) {
     queryKey: ['enrollments', enrollmentId, 'payments'],
     queryFn: () => listPayments(enrollmentId!),
     enabled: !!enrollmentId,
+    staleTime: STALE_30S,
   });
 }
 
@@ -350,7 +367,8 @@ export function usePromoteStudents() {
     mutationFn: (id: string) => promoteStudents(id),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['students', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['finance'] });
       toast.success(`${result.promoted} élèves promus, ${result.skipped} ignorés`);
     },
     onError: () => {

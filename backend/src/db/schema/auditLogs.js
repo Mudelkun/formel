@@ -1,4 +1,4 @@
-const { pgTable, uuid, varchar, jsonb, timestamp } = require('drizzle-orm/pg-core');
+const { pgTable, uuid, varchar, jsonb, timestamp, index } = require('drizzle-orm/pg-core');
 const { users } = require('./users');
 
 const auditLogs = pgTable('audit_logs', {
@@ -10,6 +10,10 @@ const auditLogs = pgTable('audit_logs', {
   oldData: jsonb('old_data'),
   newData: jsonb('new_data'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index().on(table.userId),
+  index().on(table.tableName),
+  index().on(table.createdAt),
+]);
 
 module.exports = { auditLogs };

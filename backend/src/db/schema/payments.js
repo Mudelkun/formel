@@ -14,6 +14,7 @@ const payments = pgTable('payments', {
   updatedAt: timestamp('updated_at'),
 }, (table) => [
   index().on(table.enrollmentId),
+  index().on(table.enrollmentId, table.status),
 ]);
 
 module.exports = { payments };

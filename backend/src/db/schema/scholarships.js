@@ -1,4 +1,4 @@
-const { pgTable, uuid, varchar, numeric, boolean, timestamp } = require('drizzle-orm/pg-core');
+const { pgTable, uuid, varchar, numeric, boolean, timestamp, index } = require('drizzle-orm/pg-core');
 const { enrollments } = require('./enrollments');
 const { versements } = require('./versements');
 
@@ -12,6 +12,9 @@ const scholarships = pgTable('scholarships', {
   isBookAnnulation: boolean('is_book_annulation').default(false),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at'),
-});
+}, (table) => [
+  index().on(table.enrollmentId),
+  index().on(table.targetVersementId),
+]);
 
 module.exports = { scholarships };
