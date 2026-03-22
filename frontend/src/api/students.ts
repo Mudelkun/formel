@@ -18,6 +18,7 @@ export interface StudentFilters {
   name?: string;
   status?: string;
   classId?: string;
+  scholarship?: string;
   page?: number;
   limit?: number;
 }
@@ -97,6 +98,18 @@ export async function updateContact(
 
 export async function deleteContact(studentId: string, contactId: string): Promise<void> {
   await api.delete(`/students/${studentId}/contacts/${contactId}`);
+}
+
+// ── Promote / Downgrade ──────────────────────────────────
+
+export async function promoteStudent(studentId: string): Promise<{ className: string; gradeLevel: number }> {
+  const { data } = await api.post(`/students/${studentId}/promote`);
+  return data;
+}
+
+export async function downgradeStudent(studentId: string): Promise<{ className: string; gradeLevel: number }> {
+  const { data } = await api.post(`/students/${studentId}/downgrade`);
+  return data;
 }
 
 // ── Balance ───────────────────────────────────────────────

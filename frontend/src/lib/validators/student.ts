@@ -21,7 +21,6 @@ export const updateStudentSchema = z.object({
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format AAAA-MM-JJ requis'),
   nie: z.string().optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
-  scholarshipRecipient: z.boolean().optional().default(false),
 });
 
 export type UpdateStudentFormData = z.infer<typeof updateStudentSchema>;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/auth';
+import { useScholarships } from '@/hooks/use-students';
 import EditStudentDialog from './EditStudentDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ export default function StudentPersonalInfo({ student }: Props) {
   const { user } = useAuth();
   const canEdit = user?.role === 'admin' || user?.role === 'secretary';
   const [editOpen, setEditOpen] = useState(false);
+  const { data: scholarships } = useScholarships(student.currentEnrollment?.enrollmentId);
+  const hasScholarship = !!scholarships && scholarships.length > 0;
 
   const fields = [
     { label: 'Prénom', value: student.firstName },
@@ -22,7 +25,7 @@ export default function StudentPersonalInfo({ student }: Props) {
     { label: 'Date de naissance', value: new Date(student.birthDate).toLocaleDateString('fr-FR') },
     { label: 'NIE', value: student.nie || '—' },
     { label: 'Adresse', value: student.address || '—' },
-    { label: 'Boursier', value: student.scholarshipRecipient ? 'Oui' : 'Non' },
+    { label: 'Boursier', value: hasScholarship ? 'Oui' : 'Non' },
   ];
 
   return (

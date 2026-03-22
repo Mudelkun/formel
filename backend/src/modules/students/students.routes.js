@@ -14,6 +14,8 @@ const {
   createStudent,
   getStudent,
   updateStudent,
+  promoteStudent,
+  downgradeStudent,
 } = require('./students.controller');
 
 // Contacts
@@ -54,6 +56,10 @@ router.get('/', auth, authorize('admin', 'secretary', 'teacher'), validate(listS
 router.post('/', auth, authorize('admin', 'secretary'), validate(createStudentSchema), createStudent);
 router.get('/:id', auth, authorize('admin', 'secretary', 'teacher'), validate(studentIdParamSchema), getStudent);
 router.patch('/:id', auth, authorize('admin', 'secretary'), validate(updateStudentSchema), updateStudent);
+
+// Promote / Downgrade
+router.post('/:id/promote', auth, authorize('admin', 'secretary'), validate(studentIdParamSchema), promoteStudent);
+router.post('/:id/downgrade', auth, authorize('admin', 'secretary'), validate(studentIdParamSchema), downgradeStudent);
 
 // Photo
 router.post('/:id/photo', auth, authorize('admin', 'secretary'), upload.single('photo'), uploadPhoto);

@@ -7,6 +7,8 @@ import StudentEnrollmentCard from '@/components/students/StudentEnrollmentCard';
 import StudentContactsCard from '@/components/students/StudentContactsCard';
 import StudentDocumentsCard from '@/components/students/StudentDocumentsCard';
 import StudentBalanceCard from '@/components/students/StudentBalanceCard';
+import StudentPaymentHistory from '@/components/students/StudentPaymentHistory';
+import StudentScholarshipCard from '@/components/students/StudentScholarshipCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -78,12 +80,14 @@ export default function StudentDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           <StudentPersonalInfo student={student} />
           <StudentBalanceCard studentId={student.id} />
+          <StudentPaymentHistory student={student} />
         </div>
 
         {/* Right sidebar */}
         <div className="space-y-6">
           <StudentPhotoCard student={student} />
           <StudentEnrollmentCard student={student} />
+          <StudentScholarshipCard student={student} />
           <StudentContactsCard student={student} />
           <StudentDocumentsCard studentId={student.id} />
         </div>

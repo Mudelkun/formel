@@ -11,10 +11,16 @@ const { versements } = require('../../db/schema/versements');
 const { AppError } = require('../../lib/apiError');
 
 /**
- * Compute total discount from multiple scholarships.
- * Returns { proportionalDiscount, versementAnnulations: Map<versementId, amount>, bookAnnulation: amount }
+ * Compute discount components from multiple scholarships.
+ *
+ * IMPORTANT: proportionalDiscount is a ratio (0–1) applied ONLY to versements.
+ * Books are only affected by explicit book_annulation records.
+ *
+ * @param scholarshipList  Array of scholarship records
+ * @param versementsTotal  Sum of all versement amounts (excluding books)
+ * @returns { proportionalDiscount, versementAnnulations: Map<versementId, amount>, bookAnnulation: amount }
  */
-function computeDiscounts(scholarshipList, totalTuition) {
+function computeDiscounts(scholarshipList, versementsTotal) {
   let proportionalDiscount = 0;
   const versementAnnulations = new Map();
   let bookAnnulation = 0;
@@ -22,13 +28,13 @@ function computeDiscounts(scholarshipList, totalTuition) {
   for (const s of scholarshipList) {
     switch (s.type) {
       case 'full':
-        proportionalDiscount += totalTuition;
+        proportionalDiscount += versementsTotal;
         break;
       case 'partial':
-        proportionalDiscount += totalTuition * (Number(s.percentage) / 100);
+        proportionalDiscount += versementsTotal * (Number(s.percentage) / 100);
         break;
       case 'fixed_amount':
-        proportionalDiscount += Math.min(Number(s.fixedAmount), totalTuition);
+        proportionalDiscount += Math.min(Number(s.fixedAmount), versementsTotal);
         break;
       case 'versement_annulation': {
         const current = versementAnnulations.get(s.targetVersementId) || 0;
@@ -46,14 +52,26 @@ function computeDiscounts(scholarshipList, totalTuition) {
 
 /**
  * Simple total discount for finance summaries (flattens all scholarship types into a single number).
+ *
+ * @param scholarshipList  Array of scholarship records
+ * @param versementsTotal  Sum of all versement amounts (excluding books)
+ * @param bookFee          The book fee amount
  */
-function computeTotalDiscount(scholarshipList, totalTuition) {
-  const { proportionalDiscount, versementAnnulations, bookAnnulation } = computeDiscounts(scholarshipList, totalTuition);
-  let total = proportionalDiscount + bookAnnulation;
+function computeTotalDiscount(scholarshipList, versementsTotal, bookFee) {
+  const { proportionalDiscount, versementAnnulations, bookAnnulation } = computeDiscounts(scholarshipList, versementsTotal);
+
+  // Proportional discount capped at versements total
+  let total = Math.min(proportionalDiscount, versementsTotal);
+
+  // Versement annulations (each capped at its versement amount implicitly)
   for (const amount of versementAnnulations.values()) {
     total += amount;
   }
-  return Math.min(total, totalTuition);
+
+  // Book annulation capped at actual book fee
+  total += Math.min(bookAnnulation, bookFee);
+
+  return Math.min(total, versementsTotal + bookFee);
 }
 
 async function getBalance(studentId) {
@@ -116,12 +134,14 @@ async function getBalance(studentId) {
     .from(scholarships)
     .where(eq(scholarships.enrollmentId, enrollment.enrollmentId));
 
-  const { proportionalDiscount, versementAnnulations, bookAnnulation } = computeDiscounts(scholarshipList, totalTuition);
-  const discountRatio = totalTuition > 0 ? Math.min(proportionalDiscount, totalTuition) / totalTuition : 0;
+  // Proportional discount applies ONLY to versements, not books
+  const { proportionalDiscount, versementAnnulations, bookAnnulation } = computeDiscounts(scholarshipList, versementsTotal);
+  const discountRatio = versementsTotal > 0 ? Math.min(proportionalDiscount, versementsTotal) / versementsTotal : 0;
 
-  // Compute effective amounts after scholarships
-  // First apply proportional discount, then subtract direct annulations
-  const effectiveBookFee = Math.max(0, Math.round((bookFee * (1 - discountRatio) - bookAnnulation) * 100) / 100);
+  // Books are only affected by explicit book_annulation, capped at actual bookFee
+  const effectiveBookFee = Math.max(0, Math.round((bookFee - Math.min(bookAnnulation, bookFee)) * 100) / 100);
+
+  // Versements affected by proportional discount AND individual annulations
   const effectiveVersements = versementList.map((v) => {
     const baseEffective = Number(v.amount) * (1 - discountRatio);
     const annulation = versementAnnulations.get(v.id) || 0;
@@ -165,6 +185,7 @@ async function getBalance(studentId) {
     const dueDate = new Date(v.dueDate + 'T23:59:59');
 
     return {
+      id: v.id,
       number: v.number,
       name: v.name,
       amount: v.amount,
@@ -183,8 +204,10 @@ async function getBalance(studentId) {
   // Find current (first unpaid) versement
   const currentVersement = versementDetails.find((v) => !v.isPaidInFull) || null;
 
-  const totalDiscount = computeTotalDiscount(scholarshipList, totalTuition);
-  const amountDue = Math.round((totalTuition - totalDiscount) * 100) / 100;
+  // Derive total discount from effective amounts (most accurate)
+  const effectiveTuitionTotal = effectiveVersements.reduce((s, v) => s + v.effectiveAmount, 0);
+  const totalDiscount = Math.round((totalTuition - effectiveTuitionTotal - effectiveBookFee) * 100) / 100;
+  const amountDue = Math.round((effectiveTuitionTotal + effectiveBookFee) * 100) / 100;
   const totalPaid = Math.round((totalNonBookPaid + totalBookPaid) * 100) / 100;
 
   return {

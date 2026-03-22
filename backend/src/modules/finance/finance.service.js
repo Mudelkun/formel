@@ -8,7 +8,7 @@ const { payments } = require('../../db/schema/payments');
 const { feeConfigs } = require('../../db/schema/feeConfigs');
 const { versements } = require('../../db/schema/versements');
 const { students } = require('../../db/schema/students');
-const { computeTotalDiscount } = require('../balance/balance.service');
+const { computeTotalDiscount, computeDiscounts } = require('../balance/balance.service');
 const { AppError } = require('../../lib/apiError');
 
 async function getSummary({ classId, classGroupId }) {
@@ -43,7 +43,7 @@ async function getSummary({ classId, classGroupId }) {
     return { total_expected: 0, total_collected: 0, total_remaining: 0, student_count: 0 };
   }
 
-  // Cache versement totals + bookFees per classGroup
+  // Cache versement totals + bookFees per classGroup (returned separately)
   const groupTuitionCache = {};
   async function getGroupTuition(cgId) {
     if (groupTuitionCache[cgId]) return groupTuitionCache[cgId];
@@ -66,7 +66,7 @@ async function getSummary({ classId, classGroupId }) {
 
     const versementsTotal = versementList.reduce((s, v) => s + Number(v.amount), 0);
     const bookFee = feeConfig ? Number(feeConfig.bookFee) : 0;
-    groupTuitionCache[cgId] = versementsTotal + bookFee;
+    groupTuitionCache[cgId] = { versementsTotal, bookFee, total: versementsTotal + bookFee };
     return groupTuitionCache[cgId];
   }
 
@@ -81,9 +81,9 @@ async function getSummary({ classId, classGroupId }) {
   // Compute total expected (after scholarships)
   let totalExpected = 0;
   for (const e of enrollmentData) {
-    const tuition = await getGroupTuition(e.classGroupId);
-    const discount = computeTotalDiscount(scholarshipMap[e.enrollmentId] || [], tuition);
-    totalExpected += tuition - discount;
+    const { versementsTotal, bookFee, total } = await getGroupTuition(e.classGroupId);
+    const discount = computeTotalDiscount(scholarshipMap[e.enrollmentId] || [], versementsTotal, bookFee);
+    totalExpected += total - discount;
   }
 
   // Compute total collected (completed payments) and total pending
@@ -150,8 +150,6 @@ async function getVersementFinance(versementId) {
     ));
 
   const versementsTotal = allVersements.reduce((s, v) => s + Number(v.amount), 0);
-  const bookFee = feeConfig ? Number(feeConfig.bookFee) : 0;
-  const totalTuition = versementsTotal + bookFee;
 
   // Get all enrollments for this school year where class belongs to this class group
   const enrollmentData = await db
@@ -184,9 +182,11 @@ async function getVersementFinance(versementId) {
   let versementExpected = 0;
 
   for (const e of enrollmentData) {
-    const discount = computeTotalDiscount(scholarshipMap[e.enrollmentId] || [], totalTuition);
-    const discountRatio = totalTuition > 0 ? discount / totalTuition : 0;
-    const effectiveAmount = versementAmount * (1 - discountRatio);
+    // Proportional discount applies only to versements
+    const { proportionalDiscount, versementAnnulations } = computeDiscounts(scholarshipMap[e.enrollmentId] || [], versementsTotal);
+    const discountRatio = versementsTotal > 0 ? Math.min(proportionalDiscount, versementsTotal) / versementsTotal : 0;
+    const annulation = versementAnnulations.get(versement.id) || 0;
+    const effectiveAmount = Math.max(0, versementAmount * (1 - discountRatio) - annulation);
     versementExpected += effectiveAmount;
   }
 
@@ -194,8 +194,8 @@ async function getVersementFinance(versementId) {
   let totalCollected = 0;
 
   for (const e of enrollmentData) {
-    const discount = computeTotalDiscount(scholarshipMap[e.enrollmentId] || [], totalTuition);
-    const discountRatio = totalTuition > 0 ? discount / totalTuition : 0;
+    const { proportionalDiscount, versementAnnulations } = computeDiscounts(scholarshipMap[e.enrollmentId] || [], versementsTotal);
+    const discountRatio = versementsTotal > 0 ? Math.min(proportionalDiscount, versementsTotal) / versementsTotal : 0;
 
     const [{ nonBookPaid }] = await db
       .select({ nonBookPaid: sum(payments.amount) })
@@ -209,7 +209,8 @@ async function getVersementFinance(versementId) {
     let remaining = Number(nonBookPaid || 0);
 
     for (const v of allVersements) {
-      const effectiveAmount = Number(v.amount) * (1 - discountRatio);
+      const annulation = versementAnnulations.get(v.id) || 0;
+      const effectiveAmount = Math.max(0, Number(v.amount) * (1 - discountRatio) - annulation);
       const allocated = Math.min(remaining, effectiveAmount);
       remaining -= allocated;
 

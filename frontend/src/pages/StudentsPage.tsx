@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Search, GraduationCap } from 'lucide-react';
+import { Plus, Search, GraduationCap, Award, RefreshCw } from 'lucide-react';
 
 export default function StudentsPage() {
   const { user } = useAuth();
@@ -31,6 +31,7 @@ export default function StudentsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
+  const [scholarshipFilter, setScholarshipFilter] = useState('');
   const [page, setPage] = useState(1);
 
   // Debounce search
@@ -45,12 +46,13 @@ export default function StudentsPage() {
   // Reset page on filter change
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, classFilter]);
+  }, [statusFilter, classFilter, scholarshipFilter]);
 
-  const { data, isLoading } = useStudents({
+  const { data, isLoading, refetch, isFetching } = useStudents({
     name: debouncedSearch || undefined,
     status: statusFilter || undefined,
     classId: classFilter || undefined,
+    scholarship: scholarshipFilter || undefined,
     page,
     limit: 20,
   });
@@ -108,6 +110,24 @@ export default function StudentsPage() {
               <option value="expelled">Expulsé</option>
               <option value="graduated">Diplômé</option>
             </select>
+            <select
+              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={scholarshipFilter}
+              onChange={(e) => setScholarshipFilter(e.target.value)}
+            >
+              <option value="">Toutes les bourses</option>
+              <option value="true">Boursiers</option>
+              <option value="false">Non boursiers</option>
+            </select>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => refetch()}
+              disabled={isFetching}
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -125,7 +145,7 @@ export default function StudentsPage() {
             <EmptyState
               icon={GraduationCap}
               title="Aucun élève trouvé"
-              description={debouncedSearch || statusFilter || classFilter
+              description={debouncedSearch || statusFilter || classFilter || scholarshipFilter
                 ? 'Essayez de modifier vos filtres.'
                 : 'Commencez par ajouter votre premier élève.'
               }
@@ -154,7 +174,9 @@ export default function StudentsPage() {
                   {students.map((student) => (
                     <TableRow
                       key={student.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={`cursor-pointer hover:bg-muted/50 ${
+                        student.scholarshipRecipient ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''
+                      }`}
                       onClick={() => navigate(`/students/${student.id}`)}
                     >
                       <TableCell className="font-mono text-xs text-muted-foreground">
@@ -162,6 +184,9 @@ export default function StudentsPage() {
                       </TableCell>
                       <TableCell className="font-medium">
                         {student.lastName} {student.firstName}
+                        {student.scholarshipRecipient && (
+                          <Award className="inline ml-2 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                        )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-muted-foreground">
                         {student.className || '—'}

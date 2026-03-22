@@ -39,7 +39,6 @@ export default function EditStudentDialog({ student, open, onOpenChange }: Props
       birthDate: student.birthDate,
       nie: student.nie ?? '',
       address: student.address ?? '',
-      scholarshipRecipient: student.scholarshipRecipient ?? false,
     },
   });
 
@@ -110,18 +109,6 @@ export default function EditStudentDialog({ student, open, onOpenChange }: Props
               <Label htmlFor="edit-address">Adresse</Label>
               <Textarea id="edit-address" placeholder="Optionnel" rows={1} {...register('address')} />
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="edit-scholarshipRecipient"
-              {...register('scholarshipRecipient')}
-              className="h-4 w-4 rounded border-input"
-            />
-            <Label htmlFor="edit-scholarshipRecipient" className="text-sm font-normal">
-              Élève boursier
-            </Label>
           </div>
 
           <DialogFooter>

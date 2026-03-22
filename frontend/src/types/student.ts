@@ -48,6 +48,7 @@ export interface StudentDocument {
 }
 
 export interface VersementDetail {
+  id: string;
   number: number;
   name: string;
   amount: string;

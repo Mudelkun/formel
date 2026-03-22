@@ -75,3 +75,111 @@ i need to be able to change the amount set for versement and book fee for class 
 - dashboard with noce disigning
 
 
+# prompt2
+
+Students
+Creating a Student
+
+When creating a student, the modal should include optional fields for additional contact information and the ability to upload documents.
+
+Currently, only basic information is collected. Although these extra details are not required to create a student, they should still be requested to encourage users to provide them upfront.
+
+Updating a Student
+
+All student information should remain fully editable after creation. Users must be able to modify any field at any time.
+
+Scholarship Management
+
+There is currently an “Élève boursier” checkbox when creating a student.
+
+Scholarship Logic
+A student can have multiple types of scholarships.
+A scholarship can be:
+A partial amount
+A fixed amount
+A scholarship can also:
+Cover tuition payments (versements)
+Cover book payments
+Act as a full waiver (annulation) for specific payments
+Required Improvements
+
+When the “Élève boursier” checkbox is selected, additional fields must appear to define the scholarship:
+
+Scholarship type (partial, fixed, full)
+Coverage:
+Full school year
+Books only
+Tuition only (versements)
+Amount (if applicable)
+
+If the checkbox is selected, these fields become mandatory.
+
+School Year (During Student Creation)
+
+The school year dropdown should:
+
+Automatically be set to the current active school year
+Be non-editable
+New Features
+Payment History Section
+
+Add a section that displays:
+
+The history of all recorded payments
+Filtered by the selected school year
+Promote Button
+
+This button should:
+
+Move the student to the next grade level
+Update enrollment by:
+Either overwriting the current enrollment
+Or deleting and recreating it for the new grade
+Downgrade Button
+
+This button is used when a student repeats a grade.
+
+If a student was previously promoted, this allows moving them one level down in the grade structure.
+Bug to Fix
+Duplicate Students After Promotion
+
+Currently, promoting a student creates duplicate entries on the “Élèves” page.
+
+Expected Behavior
+Only show students who are actively enrolled
+A student cannot exist without an enrollment
+When switching to a different school year:
+If no students are enrolled, the list should be empty
+Students should only appear after being promoted or enrolled for that year
+
+
+---
+
+# Scholarship Management
+
+## Scholarship Type (Dropdown)
+
+
+- Bourse complète (100%)
+  - Covers all tuition payments and books
+- Bourse scolarité
+  - Covers all tuition payments only
+
+- Bourse special
+ - Annuler un ou plusieurs versements
+ - Annuler tous les versements
+ - Annuler le paiement des livres
+
+## bug to fix
+
+When we click annuler le paiment des livres the math is not done corecly in the student page.
+
+## before confirming
+
+Verify that all the math and calculations are correct in the student page
+
+## Consistency
+
+The "élève boursier" dialog in the student creation modal must be identical to the one used in the student page.
+
+This should be implemented as a reusable component.

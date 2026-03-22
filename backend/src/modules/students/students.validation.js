@@ -31,6 +31,7 @@ const listStudentsSchema = z.object({
     name: z.string().optional(),
     status: z.enum(['active', 'transfer', 'expelled', 'graduated']).optional(),
     classId: z.string().uuid().optional(),
+    scholarship: z.enum(['true', 'false']).optional(),
     page: z.coerce.number().int().positive().optional().default(1),
     limit: z.coerce.number().int().positive().max(100).optional().default(20),
   }),

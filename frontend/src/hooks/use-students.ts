@@ -13,11 +13,13 @@ import {
   updateContact,
   deleteContact,
   getBalance,
+  promoteStudent,
+  downgradeStudent,
   type StudentFilters,
 } from '@/api/students';
 import { listClasses, createClass } from '@/api/classes';
 import { listSchoolYears, createSchoolYear, activateSchoolYear, promoteStudents } from '@/api/school-years';
-import { createEnrollment } from '@/api/enrollments';
+import { createEnrollment, createScholarship, listScholarships, updateScholarship, deleteScholarship, listPayments, type CreateScholarshipInput, type Scholarship, type Payment } from '@/api/enrollments';
 import type {
   CreateStudentInput,
   UpdateStudentInput,
@@ -209,6 +211,106 @@ export function useCreateEnrollment() {
     onError: () => {
       toast.error('Erreur lors de l\'inscription');
     },
+  });
+}
+
+// ── Promote / Downgrade ─────────────────────────────────
+
+export function usePromoteStudent(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => promoteStudent(id),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['students', 'detail', id] });
+      queryClient.invalidateQueries({ queryKey: ['students', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['students', 'balance', id] });
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      toast.success(`Élève promu en ${result.className}`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Erreur lors de la promotion');
+    },
+  });
+}
+
+export function useDowngradeStudent(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => downgradeStudent(id),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['students', 'detail', id] });
+      queryClient.invalidateQueries({ queryKey: ['students', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['students', 'balance', id] });
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      toast.success(`Élève rétrogradé en ${result.className}`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Erreur lors de la rétrogradation');
+    },
+  });
+}
+
+// ── Scholarships ────────────────────────────────────────
+
+export function useScholarships(enrollmentId: string | undefined) {
+  return useQuery({
+    queryKey: ['enrollments', enrollmentId, 'scholarships'],
+    queryFn: () => listScholarships(enrollmentId!),
+    enabled: !!enrollmentId,
+  });
+}
+
+export function useCreateScholarship() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ enrollmentId, data }: { enrollmentId: string; data: CreateScholarshipInput }) =>
+      createScholarship(enrollmentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      toast.success('Bourse ajoutée');
+    },
+  });
+}
+
+export function useUpdateScholarship(enrollmentId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ scholarshipId, data }: { scholarshipId: string; data: Partial<CreateScholarshipInput> }) =>
+      updateScholarship(scholarshipId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments', enrollmentId, 'scholarships'] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success('Bourse mise à jour');
+    },
+    onError: () => {
+      toast.error('Erreur lors de la mise à jour de la bourse');
+    },
+  });
+}
+
+export function useDeleteScholarship(enrollmentId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (scholarshipId: string) => deleteScholarship(scholarshipId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments', enrollmentId, 'scholarships'] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success('Bourse supprimée');
+    },
+    onError: () => {
+      toast.error('Erreur lors de la suppression');
+    },
+  });
+}
+
+// ── Payments ────────────────────────────────────────────
+
+export function usePayments(enrollmentId: string | undefined) {
+  return useQuery({
+    queryKey: ['enrollments', enrollmentId, 'payments'],
+    queryFn: () => listPayments(enrollmentId!),
+    enabled: !!enrollmentId,
   });
 }
 

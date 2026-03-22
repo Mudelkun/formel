@@ -21,4 +21,14 @@ const updateStudent = asyncHandler(async (req, res) => {
   res.json(student);
 });
 
-module.exports = { listStudents, createStudent, getStudent, updateStudent };
+const promoteStudent = asyncHandler(async (req, res) => {
+  const result = await studentsService.promoteStudent(req.params.id);
+  res.json(result);
+});
+
+const downgradeStudent = asyncHandler(async (req, res) => {
+  const result = await studentsService.downgradeStudent(req.params.id);
+  res.json(result);
+});
+
+module.exports = { listStudents, createStudent, getStudent, updateStudent, promoteStudent, downgradeStudent };
