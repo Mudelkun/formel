@@ -181,7 +181,7 @@ async function getBalance(studentId) {
     const due = v.effectiveAmount;
     const paid = Math.min(remaining, due);
     remaining -= paid;
-    const amountRemaining = Math.round((due - paid) * 100) / 100;
+    const rawRemaining = Math.round((due - paid) * 100) / 100;
     const dueDate = new Date(v.dueDate + 'T23:59:59');
 
     return {
@@ -192,14 +192,17 @@ async function getBalance(studentId) {
       effectiveAmount: due,
       dueDate: v.dueDate,
       amountPaid: Math.round(paid * 100) / 100,
-      amountRemaining,
+      amountRemaining: Math.max(0, rawRemaining),
       isPaidInFull: paid >= due,
-      isOverdue: amountRemaining > 0 && now > dueDate,
+      isOverdue: rawRemaining > 0 && now > dueDate,
     };
   });
+  // remaining now holds the tuition surplus (if any)
+  const tuitionSurplus = Math.round(Math.max(0, remaining) * 100) / 100;
 
   // Book balance
   const bookAmountRemaining = Math.round((effectiveBookFee - totalBookPaid) * 100) / 100;
+  const bookSurplus = Math.round(Math.max(0, -bookAmountRemaining) * 100) / 100;
 
   // Find current (first unpaid) versement
   const currentVersement = versementDetails.find((v) => !v.isPaidInFull) || null;
@@ -209,6 +212,8 @@ async function getBalance(studentId) {
   const totalDiscount = Math.round((totalTuition - effectiveTuitionTotal - effectiveBookFee) * 100) / 100;
   const amountDue = Math.round((effectiveTuitionTotal + effectiveBookFee) * 100) / 100;
   const totalPaid = Math.round((totalNonBookPaid + totalBookPaid) * 100) / 100;
+  const totalRemaining = Math.max(0, Math.round((amountDue - totalPaid) * 100) / 100);
+  const totalSurplus = Math.round(Math.max(0, totalPaid - amountDue) * 100) / 100;
 
   return {
     versements: versementDetails,
@@ -217,13 +222,17 @@ async function getBalance(studentId) {
       effectiveFee: effectiveBookFee,
       amountPaid: Math.round(totalBookPaid * 100) / 100,
       amountRemaining: Math.max(0, bookAmountRemaining),
+      surplus: bookSurplus,
     },
     total: {
       tuition: totalTuition,
       scholarshipDiscount: Math.round(totalDiscount * 100) / 100,
       amountDue,
       amountPaid: totalPaid,
-      amountRemaining: Math.round((amountDue - totalPaid) * 100) / 100,
+      amountRemaining: totalRemaining,
+      tuitionSurplus,
+      bookSurplus,
+      surplus: totalSurplus,
     },
     currentVersement: currentVersement ? {
       number: currentVersement.number,
@@ -233,4 +242,59 @@ async function getBalance(studentId) {
   };
 }
 
-module.exports = { getBalance, computeDiscounts, computeTotalDiscount };
+async function transferCredit(studentId, { from, amount }) {
+  // Get current balance to validate surplus
+  const balance = await getBalance(studentId);
+
+  const surplus = from === 'tuition' ? balance.total.tuitionSurplus : balance.total.bookSurplus;
+  if (amount > surplus) {
+    throw new AppError(400, `Crédit insuffisant. Crédit disponible : ${surplus}`);
+  }
+
+  // Find enrollment for active school year
+  const [enrollment] = await db
+    .select({ enrollmentId: enrollments.id })
+    .from(enrollments)
+    .innerJoin(classes, eq(enrollments.classId, classes.id))
+    .innerJoin(schoolYears, and(
+      eq(enrollments.schoolYearId, schoolYears.id),
+      eq(schoolYears.isActive, true)
+    ))
+    .where(eq(enrollments.studentId, studentId));
+
+  if (!enrollment) {
+    throw new AppError(404, 'Aucune inscription active');
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const isFromBooks = from === 'books';
+
+  // Create two payment records in a transaction:
+  // 1. Negative on the source side (reduces surplus)
+  // 2. Positive on the destination side (applies credit)
+  await db.transaction(async (tx) => {
+    await tx.insert(payments).values({
+      enrollmentId: enrollment.enrollmentId,
+      amount: String(-amount),
+      paymentDate: today,
+      paymentMethod: 'credit_transfer',
+      isBookPayment: isFromBooks,
+      status: 'completed',
+      notes: `Transfert de crédit ${isFromBooks ? 'livres → scolarité' : 'scolarité → livres'}`,
+    });
+    await tx.insert(payments).values({
+      enrollmentId: enrollment.enrollmentId,
+      amount: String(amount),
+      paymentDate: today,
+      paymentMethod: 'credit_transfer',
+      isBookPayment: !isFromBooks,
+      status: 'completed',
+      notes: `Transfert de crédit ${isFromBooks ? 'livres → scolarité' : 'scolarité → livres'}`,
+    });
+  });
+
+  // Return refreshed balance
+  return getBalance(studentId);
+}
+
+module.exports = { getBalance, transferCredit, computeDiscounts, computeTotalDiscount };

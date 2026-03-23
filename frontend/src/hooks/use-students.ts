@@ -13,6 +13,7 @@ import {
   updateContact,
   deleteContact,
   getBalance,
+  transferCredit,
   promoteStudent,
   downgradeStudent,
   type StudentFilters,
@@ -190,6 +191,22 @@ export function useStudentBalance(studentId: string) {
     queryFn: () => getBalance(studentId),
     enabled: !!studentId,
     staleTime: STALE_30S,
+  });
+}
+
+export function useTransferCredit(studentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { from: 'tuition' | 'books'; amount: number }) =>
+      transferCredit(studentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students', studentId, 'balance'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      toast.success('Crédit transféré avec succès');
+    },
+    onError: () => {
+      toast.error('Erreur lors du transfert de crédit');
+    },
   });
 }
 

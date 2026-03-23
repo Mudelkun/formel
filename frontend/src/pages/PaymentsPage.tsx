@@ -27,9 +27,9 @@ import {
 import { Plus, Search, Check, Clock, X, CreditCard, TrendingUp } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Check }> = {
-  completed: { label: 'Confirmé', color: 'text-green-600', icon: Check },
-  pending: { label: 'En attente', color: 'text-amber-600', icon: Clock },
-  failed: { label: 'Rejeté', color: 'text-red-600', icon: X },
+  completed: { label: 'Confirmé', color: 'text-green-600 dark:text-green-400', icon: Check },
+  pending: { label: 'En attente', color: 'text-amber-600 dark:text-amber-400', icon: Clock },
+  failed: { label: 'Rejeté', color: 'text-red-600 dark:text-red-400', icon: X },
 };
 
 export default function PaymentsPage() {
@@ -162,7 +162,7 @@ export default function PaymentsPage() {
               />
             </div>
             <select
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -172,7 +172,7 @@ export default function PaymentsPage() {
               <option value="failed">Rejeté</option>
             </select>
             <select
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={groupFilter}
               onChange={(e) => { setGroupFilter(e.target.value); setClassFilter(''); }}
             >
@@ -182,7 +182,7 @@ export default function PaymentsPage() {
               ))}
             </select>
             <select
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
             >

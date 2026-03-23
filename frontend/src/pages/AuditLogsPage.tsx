@@ -17,9 +17,9 @@ import {
 import { FileText } from 'lucide-react';
 
 const actionLabels: Record<string, { label: string; color: string }> = {
-  CREATE: { label: 'Création', color: 'bg-green-100 text-green-700 hover:bg-green-100' },
-  UPDATE: { label: 'Modification', color: 'bg-blue-100 text-blue-700 hover:bg-blue-100' },
-  DELETE: { label: 'Suppression', color: 'bg-red-100 text-red-700 hover:bg-red-100' },
+  CREATE: { label: 'Création', color: 'bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/30' },
+  UPDATE: { label: 'Modification', color: 'bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/30' },
+  DELETE: { label: 'Suppression', color: 'bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/30' },
 };
 
 const tableLabels: Record<string, string> = {
@@ -91,7 +91,7 @@ export default function AuditLogsPage() {
         <CardContent className="p-4">
           <div className="flex flex-col gap-3 sm:flex-row">
             <select
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
             >
@@ -101,7 +101,7 @@ export default function AuditLogsPage() {
               <option value="DELETE">Suppression</option>
             </select>
             <select
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={tableFilter}
               onChange={(e) => setTableFilter(e.target.value)}
             >

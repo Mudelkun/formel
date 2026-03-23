@@ -352,4 +352,103 @@ async function getDashboardStats() {
   };
 }
 
-module.exports = { getSummary, getVersementFinance, getDashboardStats };
+async function getMonthlyPayments() {
+  const [activeYear] = await db
+    .select()
+    .from(schoolYears)
+    .where(eq(schoolYears.isActive, true));
+
+  if (!activeYear) return [];
+
+  const rows = await db
+    .select({
+      month: sql`TO_CHAR(${payments.paymentDate}, 'YYYY-MM')`.as('month'),
+      collected: sum(sql`CASE WHEN ${payments.status} = 'completed' THEN ${payments.amount} ELSE 0 END`),
+      pending: sum(sql`CASE WHEN ${payments.status} = 'pending' THEN ${payments.amount} ELSE 0 END`),
+      count: count(),
+    })
+    .from(payments)
+    .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
+    .where(eq(enrollments.schoolYearId, activeYear.id))
+    .groupBy(sql`TO_CHAR(${payments.paymentDate}, 'YYYY-MM')`)
+    .orderBy(sql`TO_CHAR(${payments.paymentDate}, 'YYYY-MM')`);
+
+  return rows.map((r) => ({
+    month: r.month,
+    collected: Math.round(Number(r.collected || 0) * 100) / 100,
+    pending: Math.round(Number(r.pending || 0) * 100) / 100,
+    count: Number(r.count),
+  }));
+}
+
+async function getGroupBreakdown() {
+  const [activeYear] = await db
+    .select()
+    .from(schoolYears)
+    .where(eq(schoolYears.isActive, true));
+
+  if (!activeYear) return [];
+
+  const { classGroups } = require('../../db/schema/classGroups');
+
+  // Get all groups
+  const groups = await db.select().from(classGroups);
+  const results = [];
+
+  for (const group of groups) {
+    const summary = await getSummary({ classGroupId: group.id });
+    results.push({
+      id: group.id,
+      name: group.name,
+      expected: summary.total_expected,
+      collected: summary.total_collected,
+      pending: summary.total_pending,
+      remaining: summary.total_remaining,
+      scholarships: summary.total_scholarships,
+      studentCount: summary.student_count,
+    });
+  }
+
+  return results;
+}
+
+async function getPaymentMethodBreakdown() {
+  const [activeYear] = await db
+    .select()
+    .from(schoolYears)
+    .where(eq(schoolYears.isActive, true));
+
+  if (!activeYear) return [];
+
+  const rows = await db
+    .select({
+      method: payments.paymentMethod,
+      total: sum(payments.amount),
+      count: count(),
+    })
+    .from(payments)
+    .innerJoin(enrollments, eq(payments.enrollmentId, enrollments.id))
+    .where(and(
+      eq(enrollments.schoolYearId, activeYear.id),
+      eq(payments.status, 'completed'),
+    ))
+    .groupBy(payments.paymentMethod);
+
+  const methodLabels = {
+    cash: 'Espèces',
+    check: 'Chèque',
+    transfer: 'Virement',
+    mobile: 'Mobile',
+    deposit: 'Dépôt bancaire',
+    credit_transfer: 'Transfert',
+  };
+
+  return rows.map((r) => ({
+    method: r.method,
+    label: methodLabels[r.method] || r.method,
+    total: Math.round(Number(r.total || 0) * 100) / 100,
+    count: Number(r.count),
+  }));
+}
+
+module.exports = { getSummary, getVersementFinance, getDashboardStats, getMonthlyPayments, getGroupBreakdown, getPaymentMethodBreakdown };

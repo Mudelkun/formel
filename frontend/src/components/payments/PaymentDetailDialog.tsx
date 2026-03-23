@@ -19,12 +19,13 @@ const methodLabels: Record<string, string> = {
   check: 'Chèque',
   mobile: 'Mobile',
   deposit: 'Dépôt bancaire',
+  credit_transfer: 'Transfert de crédit',
 };
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Check }> = {
-  completed: { label: 'Confirmé', color: 'text-green-600', icon: Check },
-  pending: { label: 'En attente', color: 'text-amber-600', icon: Clock },
-  failed: { label: 'Rejeté', color: 'text-red-600', icon: X },
+  completed: { label: 'Confirmé', color: 'text-green-600 dark:text-green-400', icon: Check },
+  pending: { label: 'En attente', color: 'text-amber-600 dark:text-amber-400', icon: Clock },
+  failed: { label: 'Rejeté', color: 'text-red-600 dark:text-red-400', icon: X },
 };
 
 function isImageUrl(url: string) {

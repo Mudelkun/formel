@@ -55,13 +55,14 @@ export default function StudentsPage() {
   // Reset pagination on filter change
   useEffect(() => {
     resetPagination();
-  }, [enrollmentStatusFilter, classFilter, scholarshipFilter, resetPagination]);
+  }, [enrollmentStatusFilter, classFilter, scholarshipFilter, overdueFilter, resetPagination]);
 
   const currentCursor = cursorStack[pageIndex];
 
   const { data, isLoading, refetch, isFetching } = useStudents({
     name: debouncedSearch || undefined,
     enrollmentStatus: enrollmentStatusFilter || undefined,
+    overdue: overdueFilter ? 'true' : undefined,
     classId: classFilter || undefined,
     scholarship: scholarshipFilter || undefined,
     cursor: currentCursor,
@@ -117,7 +118,7 @@ export default function StudentsPage() {
               />
             </div>
             <select
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
             >
@@ -127,7 +128,7 @@ export default function StudentsPage() {
               ))}
             </select>
             <select
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={enrollmentStatusFilter}
               onChange={(e) => setEnrollmentStatusFilter(e.target.value)}
             >
@@ -137,7 +138,7 @@ export default function StudentsPage() {
               <option value="graduated">Diplômés</option>
             </select>
             <select
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={scholarshipFilter}
               onChange={(e) => setScholarshipFilter(e.target.value)}
             >
@@ -145,6 +146,15 @@ export default function StudentsPage() {
               <option value="true">Boursiers</option>
               <option value="false">Non boursiers</option>
             </select>
+            <Button
+              variant={overdueFilter ? 'destructive' : 'outline'}
+              size="sm"
+              className="h-8 shrink-0 gap-1.5"
+              onClick={() => setOverdueFilter((v) => !v)}
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+              En retard
+            </Button>
             <Button
               variant="outline"
               size="icon"
@@ -171,12 +181,12 @@ export default function StudentsPage() {
             <EmptyState
               icon={GraduationCap}
               title="Aucun élève trouvé"
-              description={debouncedSearch || enrollmentStatusFilter || classFilter || scholarshipFilter
+              description={debouncedSearch || enrollmentStatusFilter || classFilter || scholarshipFilter || overdueFilter
                 ? 'Essayez de modifier vos filtres.'
                 : 'Commencez par ajouter votre premier élève.'
               }
             >
-              {canCreate && !debouncedSearch && !enrollmentStatusFilter && !classFilter && (
+              {canCreate && !debouncedSearch && !enrollmentStatusFilter && !classFilter && !overdueFilter && (
                 <Button size="sm" onClick={() => setCreateOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Nouvel élève
@@ -188,8 +198,7 @@ export default function StudentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>NIE</TableHead>
-                    <TableHead>Nom complet</TableHead>
+                    <TableHead>Élève</TableHead>
                     <TableHead className="hidden md:table-cell">Classe</TableHead>
                     <TableHead className="hidden sm:table-cell">Genre</TableHead>
                     <TableHead>Statut</TableHead>
@@ -205,14 +214,31 @@ export default function StudentsPage() {
                       }`}
                       onClick={() => navigate(`/students/${student.id}`)}
                     >
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {student.nie || '—'}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {student.lastName} {student.firstName}
-                        {student.scholarshipRecipient && (
-                          <Award className="inline ml-2 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-                        )}
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {student.profilePhotoUrl ? (
+                            <img
+                              src={student.profilePhotoUrl}
+                              alt=""
+                              className="h-8 w-8 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold uppercase">
+                              {student.lastName.charAt(0)}{student.firstName.charAt(0)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {student.lastName} {student.firstName}
+                              {student.scholarshipRecipient && (
+                                <Award className="inline ml-2 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                              )}
+                            </p>
+                            {student.nie && (
+                              <p className="text-xs text-muted-foreground">{student.nie}</p>
+                            )}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-muted-foreground">
                         {student.className || '—'}

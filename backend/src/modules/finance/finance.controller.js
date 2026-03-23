@@ -16,4 +16,19 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
-module.exports = { getSummary, getVersementFinance, getDashboardStats };
+const getMonthlyPayments = asyncHandler(async (_req, res) => {
+  const result = await financeService.getMonthlyPayments();
+  res.json(result);
+});
+
+const getGroupBreakdown = asyncHandler(async (_req, res) => {
+  const result = await financeService.getGroupBreakdown();
+  res.json(result);
+});
+
+const getPaymentMethodBreakdown = asyncHandler(async (_req, res) => {
+  const result = await financeService.getPaymentMethodBreakdown();
+  res.json(result);
+});
+
+module.exports = { getSummary, getVersementFinance, getDashboardStats, getMonthlyPayments, getGroupBreakdown, getPaymentMethodBreakdown };

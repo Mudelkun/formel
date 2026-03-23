@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/context/auth';
-import { useStudents, useStudent, useClasses } from '@/hooks/use-students';
+import { useStudents, useStudent, useStudentBalance, useClasses } from '@/hooks/use-students';
 import { useCreatePayment } from '@/hooks/use-payments';
 import {
   Dialog,
@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Search, ArrowLeft, Upload, FileText, X } from 'lucide-react';
+import { Loader2, Search, ArrowLeft, Upload, FileText, X, AlertTriangle } from 'lucide-react';
 
 const paymentSchema = z.object({
   amount: z.string().min(1, 'Montant requis'),
@@ -70,10 +70,14 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
   // Fetch selected student detail for enrollmentId
   const { data: studentDetail } = useStudent(selectedStudentId ?? '');
 
+  // Fetch balance for overpayment warning
+  const { data: studentBalance } = useStudentBalance(selectedStudentId ?? '');
+
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(paymentSchema),
@@ -155,7 +159,7 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
                 />
               </div>
               <select
-                className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 value={classFilter}
                 onChange={(e) => setClassFilter(e.target.value)}
               >
@@ -233,6 +237,27 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
 
             <Separator />
 
+            {(() => {
+              const amt = Number(watch('amount')) || 0;
+              const isBook = watch('isBookPayment');
+              if (!studentBalance || amt <= 0) return null;
+              const remaining = isBook
+                ? studentBalance.books.amountRemaining
+                : studentBalance.total.amountRemaining - studentBalance.books.amountRemaining;
+              const excess = amt - remaining;
+              if (excess <= 0 || remaining <= 0) return null;
+              return (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 dark:border-amber-800 dark:bg-amber-900/20">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Ce montant dépasse le solde restant de{' '}
+                    <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(excess)} HTG</span>.
+                    Le paiement sera quand même enregistré.
+                  </p>
+                </div>
+              );
+            })()}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="amount">Montant *</Label>
@@ -261,7 +286,7 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
               <select
                 id="paymentMethod"
                 {...register('paymentMethod')}
-                className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <option value="cash">Espèces</option>
                 <option value="transfer">Virement</option>

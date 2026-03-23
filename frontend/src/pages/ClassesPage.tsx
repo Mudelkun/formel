@@ -32,12 +32,12 @@ const createClassSchema = z.object({
 type CreateClassFormData = z.infer<typeof createClassSchema>;
 
 const colorPalette = [
-  'bg-amber-50 text-amber-700 border-amber-200',
-  'bg-blue-50 text-blue-700 border-blue-200',
-  'bg-violet-50 text-violet-700 border-violet-200',
-  'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'bg-rose-50 text-rose-700 border-rose-200',
-  'bg-cyan-50 text-cyan-700 border-cyan-200',
+  'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
+  'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
+  'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800',
+  'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
+  'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800',
+  'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-800',
 ];
 
 function getGroupColor(index: number): string {
@@ -237,7 +237,7 @@ export default function ClassesPage() {
               <select
                 id="classGroupId"
                 {...register('classGroupId')}
-                className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <option value="">Sélectionner un groupe</option>
                 {classGroups.map((g) => (
@@ -301,7 +301,7 @@ export default function ClassesPage() {
                   id="editClassGroupId"
                   name="editClassGroupId"
                   defaultValue={editClass.classGroupId}
-                  className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   {classGroups.map((g) => (
                     <option key={g.id} value={g.id}>{g.name}</option>

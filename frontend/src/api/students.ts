@@ -120,3 +120,11 @@ export async function getBalance(studentId: string): Promise<BalanceResponse> {
   const { data } = await api.get(`/students/${studentId}/balance`);
   return data;
 }
+
+export async function transferCredit(
+  studentId: string,
+  body: { from: 'tuition' | 'books'; amount: number }
+): Promise<BalanceResponse> {
+  const { data } = await api.post(`/students/${studentId}/credit-transfer`, body);
+  return data;
+}

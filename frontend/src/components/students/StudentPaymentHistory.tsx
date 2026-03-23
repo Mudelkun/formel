@@ -27,6 +27,7 @@ const methodLabels: Record<string, string> = {
   transfer: 'Virement',
   mobile: 'Mobile',
   deposit: 'Dépôt bancaire',
+  credit_transfer: 'Transfert de crédit',
 };
 
 export default function StudentPaymentHistory({ student }: Props) {

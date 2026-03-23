@@ -6,4 +6,9 @@ const getBalance = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
-module.exports = { getBalance };
+const transferCredit = asyncHandler(async (req, res) => {
+  const result = await balanceService.transferCredit(req.params.id, req.body);
+  res.json(result);
+});
+
+module.exports = { getBalance, transferCredit };

@@ -7,6 +7,7 @@ const { classes } = require('../../db/schema/classes');
 const { schoolYears } = require('../../db/schema/schoolYears');
 const { scholarships } = require('../../db/schema/scholarships');
 const { versements } = require('../../db/schema/versements');
+const { payments } = require('../../db/schema/payments');
 const { AppError } = require('../../lib/apiError');
 
 function buildNameConditions(name) {
@@ -58,14 +59,21 @@ async function listStudents({ name, status, enrollmentStatus, overdue, classId, 
     conditions.push(eq(students.scholarshipRecipient, false));
   }
 
-  // Filter students with overdue versements
+  // Filter students with unpaid overdue versements
   if (overdue === 'true') {
     const today = new Date().toISOString().split('T')[0];
-    conditions.push(sql`EXISTS (
-      SELECT 1 FROM ${versements}
+    conditions.push(sql`(
+      SELECT COALESCE(SUM(${versements.amount}), 0)
+      FROM ${versements}
       WHERE ${versements.classGroupId} = ${classes.classGroupId}
         AND ${versements.schoolYearId} = ${enrollments.schoolYearId}
         AND ${versements.dueDate} <= ${today}
+    ) > (
+      SELECT COALESCE(SUM(${payments.amount}), 0)
+      FROM ${payments}
+      WHERE ${payments.enrollmentId} = ${enrollments.id}
+        AND ${payments.status} = 'completed'
+        AND ${payments.isBookPayment} = false
     )`);
   }
 
@@ -99,11 +107,18 @@ async function listStudents({ name, status, enrollmentStatus, overdue, classId, 
     className: classes.name,
     gradeLevel: classes.gradeLevel,
     enrollmentStatus: enrollments.status,
-    hasOverdue: sql`EXISTS (
-      SELECT 1 FROM ${versements}
+    hasOverdue: sql`(
+      SELECT COALESCE(SUM(${versements.amount}), 0)
+      FROM ${versements}
       WHERE ${versements.classGroupId} = ${classes.classGroupId}
         AND ${versements.schoolYearId} = ${enrollments.schoolYearId}
         AND ${versements.dueDate} <= ${today}
+    ) > (
+      SELECT COALESCE(SUM(${payments.amount}), 0)
+      FROM ${payments}
+      WHERE ${payments.enrollmentId} = ${enrollments.id}
+        AND ${payments.status} = 'completed'
+        AND ${payments.isBookPayment} = false
     )`.as('has_overdue'),
   };
 

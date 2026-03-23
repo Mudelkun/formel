@@ -44,9 +44,11 @@ const {
 // Balance
 const {
   getBalanceSchema,
+  creditTransferSchema,
 } = require('../balance/balance.validation');
 const {
   getBalance,
+  transferCredit,
 } = require('../balance/balance.controller');
 
 const router = Router();
@@ -77,5 +79,6 @@ router.delete('/:id/contacts/:contactId', auth, authorize('admin'), deleteContac
 
 // Balance
 router.get('/:id/balance', auth, authorize('admin', 'secretary'), validate(getBalanceSchema), getBalance);
+router.post('/:id/credit-transfer', auth, authorize('admin'), validate(creditTransferSchema), transferCredit);
 
 module.exports = router;

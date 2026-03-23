@@ -4,4 +4,12 @@ const getBalanceSchema = z.object({
   params: z.object({ id: z.string().uuid() }),
 });
 
-module.exports = { getBalanceSchema };
+const creditTransferSchema = z.object({
+  params: z.object({ id: z.string().uuid() }),
+  body: z.object({
+    from: z.enum(['tuition', 'books']),
+    amount: z.number().positive(),
+  }),
+});
+
+module.exports = { getBalanceSchema, creditTransferSchema };

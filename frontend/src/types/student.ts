@@ -70,6 +70,7 @@ export interface BalanceResponse {
     effectiveFee: number;
     amountPaid: number;
     amountRemaining: number;
+    surplus: number;
   };
   total: {
     tuition: number;
@@ -77,6 +78,9 @@ export interface BalanceResponse {
     amountDue: number;
     amountPaid: number;
     amountRemaining: number;
+    tuitionSurplus: number;
+    bookSurplus: number;
+    surplus: number;
   };
   currentVersement: {
     number: number;

@@ -94,7 +94,7 @@ export default function EnrollmentsPage() {
                 setSchoolYearId(e.target.value);
                 resetPagination();
               }}
-              className="h-8 w-full sm:w-48 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 w-full sm:w-48 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <option value="">Toutes les années</option>
               {years.map((y) => (
@@ -109,7 +109,7 @@ export default function EnrollmentsPage() {
                 setClassId(e.target.value);
                 resetPagination();
               }}
-              className="h-8 w-full sm:w-48 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 w-full sm:w-48 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <option value="">Toutes les classes</option>
               {classes.map((c) => (
@@ -165,7 +165,7 @@ export default function EnrollmentsPage() {
                     </TableCell>
                     <TableCell>
                       {e.scholarshipRecipient ? (
-                        <Badge className="text-xs bg-green-100 text-green-700 hover:bg-green-100">Oui</Badge>
+                        <Badge className="text-xs bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/30">Oui</Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">Non</span>
                       )}

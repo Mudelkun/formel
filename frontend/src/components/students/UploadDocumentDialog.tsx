@@ -57,7 +57,7 @@ export default function UploadDocumentDialog({ studentId, open, onOpenChange }: 
               id="doc-type"
               value={documentType}
               onChange={(e) => setDocumentType(e.target.value)}
-              className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               {documentTypes.map((dt) => (
                 <option key={dt.value} value={dt.value}>{dt.label}</option>
