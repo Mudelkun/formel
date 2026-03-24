@@ -124,9 +124,9 @@ async function updatePayment(id, data, role, userId) {
 function decodePaymentCursor(cursor) {
   try {
     const json = Buffer.from(cursor, 'base64url').toString('utf8');
-    const { ca, id } = JSON.parse(json);
-    if (typeof ca === 'string' && typeof id === 'string') {
-      return { createdAt: ca, id };
+    const { pd, id } = JSON.parse(json);
+    if (typeof pd === 'string' && typeof id === 'string') {
+      return { paymentDate: pd, id };
     }
     return null;
   } catch {
@@ -136,7 +136,7 @@ function decodePaymentCursor(cursor) {
 
 function encodePaymentCursor(row) {
   return Buffer.from(
-    JSON.stringify({ ca: row.createdAt, id: row.id })
+    JSON.stringify({ pd: row.paymentDate, id: row.id })
   ).toString('base64url');
 }
 
@@ -166,12 +166,14 @@ async function listAllPayments({ status, search, classId, classGroupId, cursor, 
     }
   }
 
+  const filterWhere = conditions.length > 0 ? and(...conditions) : undefined;
+
   // Descending order: next page means "older" rows, so use < for cursor
   if (cursor) {
     const parsed = decodePaymentCursor(cursor);
     if (parsed) {
       conditions.push(
-        sql`(${payments.createdAt}, ${payments.id}) < (${parsed.createdAt}, ${parsed.id})`
+        sql`(${payments.paymentDate}, ${payments.id}) < (${parsed.paymentDate}, ${parsed.id})`
       );
     }
   }
@@ -207,9 +209,9 @@ async function listAllPayments({ status, search, classId, classGroupId, cursor, 
     baseJoins(db.select(selectFields))
       .where(where)
       .limit(limit + 1)
-      .orderBy(desc(payments.createdAt), desc(payments.id)),
+      .orderBy(desc(payments.paymentDate), desc(payments.id)),
     baseJoins(db.select({ total: count() }))
-      .where(where),
+      .where(filterWhere),
   ]);
 
   const hasNextPage = rows.length > limit;

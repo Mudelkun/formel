@@ -18,6 +18,7 @@ export default function StudentContactsCard({ student }: Props) {
   const { user } = useAuth();
   const canEdit = user?.role === 'admin' || user?.role === 'secretary';
   const canDelete = user?.role === 'admin';
+  const canMessage = user?.role === 'admin';
   const deleteContact = useDeleteContact(student.id);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -76,7 +77,7 @@ export default function StudentContactsCard({ student }: Props) {
                     </p>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    {contact.email && (
+                    {canMessage && contact.email && (
                       <Button variant="ghost" size="icon-sm" onClick={() => setMessageContact(contact)}>
                         <Send className="h-3.5 w-3.5" />
                       </Button>

@@ -24,7 +24,7 @@ const typeLabels: Record<string, string> = {
 export default function StudentDocumentsCard({ studentId }: Props) {
   const { user } = useAuth();
   const canUpload = user?.role === 'admin' || user?.role === 'secretary';
-  const canDelete = user?.role === 'admin';
+  const canDelete = user?.role === 'admin' || user?.role === 'secretary';
   const { data, isLoading } = useStudentDocuments(studentId);
   const deleteDoc = useDeleteDocument(studentId);
 

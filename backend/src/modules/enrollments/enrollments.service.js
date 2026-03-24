@@ -1,4 +1,4 @@
-const { eq, and, count, sql } = require('drizzle-orm');
+const { eq, and, or, count, sql, ilike } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { enrollments } = require('../../db/schema/enrollments');
 const { students } = require('../../db/schema/students');
@@ -27,10 +27,19 @@ function encodeEnrollmentCursor(row) {
   ).toString('base64url');
 }
 
-async function listEnrollments({ schoolYearId, classId, cursor, limit }) {
+async function listEnrollments({ schoolYearId, classId, search, cursor, limit }) {
   const conditions = [];
   if (schoolYearId) conditions.push(eq(enrollments.schoolYearId, schoolYearId));
   if (classId) conditions.push(eq(enrollments.classId, classId));
+  if (search) {
+    const pattern = `%${search}%`;
+    conditions.push(
+      or(
+        ilike(students.firstName, pattern),
+        ilike(students.lastName, pattern),
+      )
+    );
+  }
 
   if (cursor) {
     const parsed = decodeEnrollmentCursor(cursor);

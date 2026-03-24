@@ -44,3 +44,49 @@ This button is use when a student repeat a grade. If we promoted it befor using 
 Right now when we promote a student from one grade to another the Eleves page shows duplicate students -- we should change that and show the student that are enrolled
 Since a student cannot exist without an enrolement. If we switch to a diffrent year but there wasn't any students enroled for that year, than it should be blank unless we promot previous year's student first.
 
+--
+
+Right now frontend does not take students with scholarship into consideration when showing the late payment flag. Even if student has a 100% scholarship, the frontend still show late payment flag. Please fix this.
+
+
+## potential issue
+
+ - if an institution start its enrolement mid year
+
+What if we start adding new student for next year while the active year is the current year.
+Well if we switch to new school year And promote all students, all of  These new students will be moved one grade up and we will have to downgrade them later. This can be a pain.
+We should add a new feauture when creating a student -- "Enrolle for next year only"
+This should ensure that a school year higher than the current year exist and when we switch to that year and promote all students, these students will be enrolled already enrolled for that year so we would skip them all.
+
+## Permission Fixes
+
+- When creating a student, users with a **secretary account** should not be able to assign a scholarship.  
+  Currently, this restriction is enforced after the student is created, but not during creation.
+
+- Secretary accounts should not be allowed to send messages to a student’s contact.
+
+- Secretary accounts should be able to **add and delete student documents**.  
+  At the moment, they can only upload a single document.
+
+- The following information should be hidden from secretary accounts on the main dashboard:
+  - Paiements ce mois  
+  - Évolution des paiements  
+  - Aperçu des recettes  
+
+---
+
+## Logic Fix
+
+- Students who cannot be promoted due to the absence of a next class should be marked as **graduated**, rather than being ignored.
+
+---
+
+## Frontend Fix
+
+- On the **"Années scolaires"** page, switching between years causes the UI elements to shift unexpectedly.  
+  This behavior is confusing because the change is not clearly visible, and it may lead users to click the wrong buttons.
+
+
+## bug to fix
+
+- scholatshp does not follow year rule. Student with no scholarship for a previous year appear as scholarship with the tag when they did have a scholarship for next year. 

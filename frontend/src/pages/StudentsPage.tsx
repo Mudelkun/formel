@@ -142,7 +142,7 @@ export default function StudentsPage() {
               value={scholarshipFilter}
               onChange={(e) => setScholarshipFilter(e.target.value)}
             >
-              <option value="">Toutes les bourses</option>
+              <option value="">Élèves réguliers</option>
               <option value="true">Boursiers</option>
               <option value="false">Non boursiers</option>
             </select>

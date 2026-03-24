@@ -23,7 +23,7 @@ export async function createEnrollment(input: CreateEnrollmentInput) {
   return data;
 }
 
-export async function listEnrollments(params: { schoolYearId?: string; classId?: string; cursor?: string; limit?: number } = {}): Promise<CursorPaginatedResponse<Enrollment>> {
+export async function listEnrollments(params: { schoolYearId?: string; classId?: string; search?: string; cursor?: string; limit?: number } = {}): Promise<CursorPaginatedResponse<Enrollment>> {
   const { data } = await api.get('/enrollments', { params: { limit: 20, ...params } });
   return data;
 }

@@ -296,3 +296,25 @@ Since students are inherently linked to enrollments, and students cannot exist w
   - Show students with outstanding versement payments past their due dates
   - Quick-access feature to identify students requiring follow-up or payment collection
 
+
+## Promt for default data set
+
+We will reset the current backend data to simulate an institution that has been using the app for two years.
+
+First, all existing data in the database will be deleted. Then, we will create a script that repopulates the database with realistic data, simulating a fully active institution using all features of the app.
+
+After running the script, I will personally review the results to evaluate how the system behaves with this dataset.
+
+From a development perspective, the script should:
+
+Completely clear the database each time it is executed
+Recreate a full dataset from scratch
+
+This script should be added to the project’s package scripts for easy access.
+
+Additionally, when running the script, a confirmation prompt should appear for developers, including:
+
+A clear warning about data deletion
+A confirmation step (Yes / No) before proceeding
+
+This ensures the script is safe to use and prevents accidental data loss.

@@ -43,7 +43,7 @@ export default function SchoolYearsPage() {
   const [activateId, setActivateId] = useState<string | null>(null);
   const [promoteOpen, setPromoteOpen] = useState(false);
 
-  const years = yearsData?.data ?? [];
+  const years = [...(yearsData?.data ?? [])].sort((a, b) => a.year.localeCompare(b.year));
   const activeYear = years.find((y) => y.isActive);
 
   const {
@@ -143,9 +143,9 @@ export default function SchoolYearsPage() {
           {years.map((year) => (
             <Card
               key={year.id}
-              className={year.isActive ? 'border-primary/50 shadow-sm' : ''}
+              className={`flex flex-col ${year.isActive ? 'border-primary/50 shadow-sm' : ''}`}
             >
-              <CardContent className="p-5">
+              <CardContent className="p-5 flex flex-col flex-1">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
                     <CalendarDays className="h-5 w-5 text-muted-foreground" />
@@ -163,26 +163,29 @@ export default function SchoolYearsPage() {
                 <p className="text-sm text-muted-foreground mt-1">
                   {new Date(year.startDate).toLocaleDateString('fr-FR')} — {new Date(year.endDate).toLocaleDateString('fr-FR')}
                 </p>
-                {isAdmin && year.isActive && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4 w-full"
-                    onClick={() => setPromoteOpen(true)}
-                  >
-                    <ArrowUpRight className="mr-2 h-3.5 w-3.5" />
-                    Promotion automatique
-                  </Button>
-                )}
-                {isAdmin && !year.isActive && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4 w-full"
-                    onClick={() => setActivateId(year.id)}
-                  >
-                    Activer cette année
-                  </Button>
+                {isAdmin && (
+                  <div className="mt-auto pt-4">
+                    {year.isActive ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setPromoteOpen(true)}
+                      >
+                        <ArrowUpRight className="mr-2 h-3.5 w-3.5" />
+                        Promotion automatique
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setActivateId(year.id)}
+                      >
+                        Activer cette année
+                      </Button>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>

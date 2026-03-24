@@ -7,6 +7,6 @@ const { sendMessage } = require('./messaging.controller');
 
 const router = Router();
 
-router.post('/send', auth, authorize('admin', 'secretary'), validate(sendMessageSchema), sendMessage);
+router.post('/send', auth, authorize('admin'), validate(sendMessageSchema), sendMessage);
 
 module.exports = router;

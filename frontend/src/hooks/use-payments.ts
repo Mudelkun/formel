@@ -27,8 +27,9 @@ export function useCreatePayment() {
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       toast.success('Paiement enregistré');
     },
-    onError: () => {
-      toast.error("Erreur lors de l'enregistrement du paiement");
+    onError: (error: any) => {
+      const message = error?.response?.data?.error?.message || "Erreur lors de l'enregistrement du paiement";
+      toast.error(message);
     },
   });
 }
@@ -64,8 +65,9 @@ export function useUploadPaymentDocument(paymentId: string) {
       queryClient.invalidateQueries({ queryKey: ['payments', paymentId, 'documents'] });
       toast.success('Document ajouté');
     },
-    onError: () => {
-      toast.error("Erreur lors de l'envoi du document");
+    onError: (error: any) => {
+      const message = error?.response?.data?.error?.message || "Erreur lors de l'envoi du document";
+      toast.error(message);
     },
   });
 }

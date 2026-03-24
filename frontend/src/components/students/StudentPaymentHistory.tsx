@@ -1,4 +1,5 @@
 import { usePayments } from '@/hooks/use-students';
+import { useCurrency } from '@/hooks/use-currency';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -7,10 +8,6 @@ import type { StudentDetail } from '@/types/student';
 
 interface Props {
   student: StudentDetail;
-}
-
-function formatCurrency(amount: number | string) {
-  return new Intl.NumberFormat('fr-FR').format(Number(amount));
 }
 
 function formatDate(date: string) {
@@ -31,6 +28,7 @@ const methodLabels: Record<string, string> = {
 };
 
 export default function StudentPaymentHistory({ student }: Props) {
+  const { formatAmount } = useCurrency();
   const enrollmentId = student.currentEnrollment?.enrollmentId;
   const { data, isLoading, isError } = usePayments(enrollmentId);
   const payments = data?.data ?? [];
@@ -74,11 +72,9 @@ export default function StudentPaymentHistory({ student }: Props) {
                   )}
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium">{formatCurrency(payment.amount)} HTG</p>
+                  <p className="text-sm font-medium">{formatAmount(payment.amount)}</p>
                   {payment.status === 'completed' ? (
                     <Badge variant="default" className="text-[10px]">Confirmé</Badge>
-                  ) : payment.status === 'failed' ? (
-                    <Badge variant="destructive" className="text-[10px]">Rejeté</Badge>
                   ) : (
                     <Badge variant="secondary" className="text-[10px]">En attente</Badge>
                   )}

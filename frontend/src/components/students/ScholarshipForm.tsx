@@ -1,4 +1,5 @@
 import { Label } from '@/components/ui/label';
+import { formatNumber } from '@/hooks/use-currency';
 import type { VersementDetail } from '@/types/student';
 
 const selectCls = "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -120,7 +121,7 @@ export default function ScholarshipForm({ value, onChange, versements }: Props) 
                       onChange={() => toggleVersement(v.id)}
                     />
                     <span className="text-sm">
-                      {v.name} — {new Intl.NumberFormat('fr-FR').format(Number(v.amount))} HTG
+                      {v.name} — {formatNumber(v.amount)} HTG
                     </span>
                   </label>
                 ))}

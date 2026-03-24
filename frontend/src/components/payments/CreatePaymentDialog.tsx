@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useAuth } from '@/context/auth';
 import { useStudents, useStudent, useStudentBalance, useClasses } from '@/hooks/use-students';
 import { useCreatePayment } from '@/hooks/use-payments';
+import { useCurrency } from '@/hooks/use-currency';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const createPayment = useCreatePayment();
+  const { formatAmount } = useCurrency();
 
   // Step management
   const [step, setStep] = useState<1 | 2>(1);
@@ -251,7 +253,7 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
                   <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
                   <p className="text-xs text-amber-700 dark:text-amber-400">
                     Ce montant dépasse le solde restant de{' '}
-                    <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(excess)} HTG</span>.
+                    <span className="font-semibold">{formatAmount(excess)}</span>.
                     Le paiement sera quand même enregistré.
                   </p>
                 </div>
@@ -367,7 +369,16 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
                 accept=".pdf"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) { setProofFile(f); setFileError(''); }
+                  if (f) {
+                    const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+                    if (f.size > MAX_SIZE) {
+                      setFileError('Le fichier dépasse la taille maximale de 10 Mo. Veuillez choisir un fichier plus petit.');
+                      setProofFile(null);
+                    } else {
+                      setProofFile(f);
+                      setFileError('');
+                    }
+                  }
                   e.target.value = '';
                 }}
               />

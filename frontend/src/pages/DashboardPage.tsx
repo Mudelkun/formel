@@ -61,6 +61,8 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
+  const isSecretary = user.role === 'secretary';
+
   const chartData = (monthlyData ?? []).map((m) => ({
     month: formatMonthLabel(m.month),
     collected: m.collected,
@@ -77,7 +79,7 @@ export default function DashboardPage() {
       />
 
       {/* Stats row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className={`grid gap-4 sm:grid-cols-2 ${isSecretary ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} mb-6`}>
         <StatCard
           label="Élèves inscrits"
           value={isLoading ? '—' : String(stats?.totalStudents ?? 0)}
@@ -90,11 +92,13 @@ export default function DashboardPage() {
           icon={Users}
           trend="Tous les niveaux"
         />
-        <StatCard
-          label="Paiements ce mois"
-          value={isLoading ? '—' : formatAmount(stats?.paymentsThisMonth ?? 0)}
-          icon={CreditCard}
-        />
+        {!isSecretary && (
+          <StatCard
+            label="Paiements ce mois"
+            value={isLoading ? '—' : formatAmount(stats?.paymentsThisMonth ?? 0)}
+            icon={CreditCard}
+          />
+        )}
         <StatCard
           label="Versements en retard"
           value={isLoading ? '—' : String(stats?.overdueVersements ?? 0)}
@@ -103,122 +107,124 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Charts row */}
-      <div className="grid gap-6 lg:grid-cols-3 mb-6">
-        {/* Monthly payment trend */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">Évolution des paiements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {monthlyLoading ? (
-              <Skeleton className="h-64 w-full" />
-            ) : chartData.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-16">
-                Aucune donnée de paiement disponible.
-              </p>
-            ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorPending" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'currentColor' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: 'currentColor' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      color: 'hsl(var(--popover-foreground))',
-                      fontSize: '12px',
-                    }}
-                    formatter={(value: number) => [formatAmount(value)]}
-                    labelStyle={{ fontWeight: 600, marginBottom: 4 }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="collected"
-                    name="Confirmés"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorCollected)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="pending"
-                    name="En attente"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorPending)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+      {/* Charts row (hidden for secretary) */}
+      {!isSecretary && (
+        <div className="grid gap-6 lg:grid-cols-3 mb-6">
+          {/* Monthly payment trend */}
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium">Évolution des paiements</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {monthlyLoading ? (
+                <Skeleton className="h-64 w-full" />
+              ) : chartData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-16">
+                  Aucune donnée de paiement disponible.
+                </p>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorPending" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'currentColor' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: 'currentColor' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--popover-foreground))',
+                        fontSize: '12px',
+                      }}
+                      formatter={(value: number) => [formatAmount(value)]}
+                      labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="collected"
+                      name="Confirmés"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorCollected)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="pending"
+                      name="En attente"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorPending)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Payment methods pie */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">Méthodes de paiement</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {methodsLoading ? (
-              <Skeleton className="h-64 w-full" />
-            ) : pieData.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-16">
-                Aucune donnée disponible.
-              </p>
-            ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="total"
-                    nameKey="label"
-                    cx="50%"
-                    cy="45%"
-                    outerRadius={80}
-                    innerRadius={45}
-                    paddingAngle={3}
-                    strokeWidth={0}
-                  >
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      color: 'hsl(var(--popover-foreground))',
-                      fontSize: '12px',
-                    }}
-                    formatter={(value: number) => [formatAmount(value)]}
-                  />
-                  <Legend
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: '11px' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          {/* Payment methods pie */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium">Méthodes de paiement</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {methodsLoading ? (
+                <Skeleton className="h-64 w-full" />
+              ) : pieData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-16">
+                  Aucune donnée disponible.
+                </p>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="total"
+                      nameKey="label"
+                      cx="50%"
+                      cy="45%"
+                      outerRadius={80}
+                      innerRadius={45}
+                      paddingAngle={3}
+                      strokeWidth={0}
+                    >
+                      {pieData.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--popover-foreground))',
+                        fontSize: '12px',
+                      }}
+                      formatter={(value: number) => [formatAmount(value)]}
+                    />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: '11px' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Content grid */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -320,34 +326,36 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Revenue overview */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-medium">Aperçu des recettes</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
+        {/* Revenue overview (hidden for secretary) */}
+        {!isSecretary && (
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-medium">Aperçu des recettes</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </div>
-            ) : groups.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Aucun groupe de classes configuré.
-              </p>
-            ) : (
-              <div className="space-y-5">
-                {groups.map((g) => (
-                  <RevenueGroupBar key={g.id} groupId={g.id} groupName={g.name} />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : groups.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Aucun groupe de classes configuré.
+                </p>
+              ) : (
+                <div className="space-y-5">
+                  {groups.map((g) => (
+                    <RevenueGroupBar key={g.id} groupId={g.id} groupName={g.name} />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </>
   );

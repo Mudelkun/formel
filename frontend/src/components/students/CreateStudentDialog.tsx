@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createStudentSchema, type CreateStudentFormData } from '@/lib/validators/student';
 import { useCreateStudent, useCreateEnrollment, useCreateScholarship, useClasses, useSchoolYears } from '@/hooks/use-students';
+import { useAuth } from '@/context/auth';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -30,6 +31,8 @@ interface Props {
 const selectCls = "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export default function CreateStudentDialog({ open, onOpenChange }: Props) {
+  const { user } = useAuth();
+  const canAssignScholarship = user?.role === 'admin';
   const navigate = useNavigate();
   const createStudent = useCreateStudent();
   const createEnrollment = useCreateEnrollment();
@@ -53,6 +56,7 @@ export default function CreateStudentDialog({ open, onOpenChange }: Props) {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(createStudentSchema),
@@ -69,8 +73,15 @@ export default function CreateStudentDialog({ open, onOpenChange }: Props) {
     },
   });
 
+  // Set schoolYearId to active year once loaded
+  useEffect(() => {
+    if (activeYear?.id) {
+      setValue('schoolYearId', activeYear.id);
+    }
+  }, [activeYear?.id, setValue]);
+
   function resetAll() {
-    reset();
+    reset({ schoolYearId: activeYear?.id ?? '' });
     setScholarshipConfig(EMPTY_CONFIG);
     setScholarshipOpen(false);
     setContact({ firstName: '', lastName: '', email: '', phone: '', relationship: '' });
@@ -79,7 +90,7 @@ export default function CreateStudentDialog({ open, onOpenChange }: Props) {
 
   async function onSubmit(data: CreateStudentFormData) {
     const { classId, schoolYearId, ...studentData } = data;
-    const hasScholarship = isConfigActive(scholarshipConfig);
+    const hasScholarship = canAssignScholarship && isConfigActive(scholarshipConfig);
 
     try {
       const student = await createStudent.mutateAsync({
@@ -192,24 +203,28 @@ export default function CreateStudentDialog({ open, onOpenChange }: Props) {
 
           <Separator />
 
-          {/* ── Scholarship ────────────────────────── */}
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => setScholarshipOpen(!scholarshipOpen)}
-              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {scholarshipOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              Élève boursier (optionnel)
-            </button>
-            {scholarshipOpen && (
-              <div className="rounded-lg border p-3 bg-muted/30">
-                <ScholarshipForm value={scholarshipConfig} onChange={setScholarshipConfig} />
+          {/* ── Scholarship (admin only) ─────────────── */}
+          {canAssignScholarship && (
+            <>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setScholarshipOpen(!scholarshipOpen)}
+                  className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {scholarshipOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  Élève boursier (optionnel)
+                </button>
+                {scholarshipOpen && (
+                  <div className="rounded-lg border p-3 bg-muted/30">
+                    <ScholarshipForm value={scholarshipConfig} onChange={setScholarshipConfig} />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <Separator />
+              <Separator />
+            </>
+          )}
 
           {/* ── Contact ────────────────────────────── */}
           <div className="space-y-3">
@@ -274,9 +289,18 @@ export default function CreateStudentDialog({ open, onOpenChange }: Props) {
               {errors.classId && <p className="text-xs text-destructive">{errors.classId.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label>Année scolaire *</Label>
-              <Input value={activeYear?.year ?? 'Aucune année active'} disabled className="h-8 bg-muted" />
-              <input type="hidden" {...register('schoolYearId')} value={activeYear?.id ?? ''} />
+              <Label htmlFor="schoolYearId">Année scolaire *</Label>
+              <select id="schoolYearId" {...register('schoolYearId')} className={selectCls}>
+                {schoolYears.length === 0 && (
+                  <option value="">Aucune année</option>
+                )}
+                {schoolYears.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.year}{y.isActive ? ' (active)' : ''}
+                  </option>
+                ))}
+              </select>
+              {errors.schoolYearId && <p className="text-xs text-destructive">{errors.schoolYearId.message}</p>}
             </div>
           </div>
 

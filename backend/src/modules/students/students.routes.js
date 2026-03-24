@@ -69,7 +69,7 @@ router.post('/:id/photo', auth, authorize('admin', 'secretary'), upload.single('
 // Documents
 router.get('/:id/documents', auth, authorize('admin', 'secretary'), validate(studentIdParamSchema), listDocuments);
 router.post('/:id/documents', auth, authorize('admin', 'secretary'), upload.single('file'), validate(uploadDocumentSchema), uploadDocument);
-router.delete('/:id/documents/:docId', auth, authorize('admin'), deleteDocument);
+router.delete('/:id/documents/:docId', auth, authorize('admin', 'secretary'), deleteDocument);
 
 // Contacts
 router.get('/:id/contacts', auth, authorize('admin', 'secretary'), validate(studentIdParamSchema), listContacts);

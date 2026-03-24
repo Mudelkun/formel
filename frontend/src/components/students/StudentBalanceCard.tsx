@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/auth';
 import { useStudentBalance, useTransferCredit } from '@/hooks/use-students';
+import { useCurrency } from '@/hooks/use-currency';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,11 +13,8 @@ interface Props {
   studentId: string;
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('fr-FR').format(amount);
-}
-
 export default function StudentBalanceCard({ studentId }: Props) {
+  const { formatAmount, formatNumber } = useCurrency();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { data: balance, isLoading, isError } = useStudentBalance(studentId);
@@ -66,7 +64,7 @@ export default function StudentBalanceCard({ studentId }: Props) {
               <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
                 <p className="text-sm font-medium text-blue-700 dark:text-blue-400">Crédit disponible</p>
                 <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">
-                  +{formatCurrency(balance.total.surplus)} HTG
+                  +{formatAmount(balance.total.surplus)}
                 </p>
               </div>
             )}
@@ -82,7 +80,7 @@ export default function StudentBalanceCard({ studentId }: Props) {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">{formatCurrency(v.amountPaid)} / {formatCurrency(v.effectiveAmount)}</p>
+                    <p className="text-sm font-medium">{formatNumber(v.amountPaid)} / {formatNumber(v.effectiveAmount)}</p>
                     {v.isPaidInFull ? (
                       <Badge variant="default" className="text-[10px]">Payé</Badge>
                     ) : v.isOverdue ? (
@@ -98,7 +96,7 @@ export default function StudentBalanceCard({ studentId }: Props) {
                   <p className="text-xs font-medium text-blue-600 dark:text-blue-400">Crédit scolarité</p>
                   <div className="flex items-center gap-2">
                     <Badge className="text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/30">
-                      +{formatCurrency(balance.total.tuitionSurplus)}
+                      +{formatNumber(balance.total.tuitionSurplus)}
                     </Badge>
                     {isAdmin && (
                       <Button
@@ -126,12 +124,12 @@ export default function StudentBalanceCard({ studentId }: Props) {
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium">
-                  {formatCurrency(balance.books.amountPaid)} / {formatCurrency(balance.books.effectiveFee)}
+                  {formatNumber(balance.books.amountPaid)} / {formatNumber(balance.books.effectiveFee)}
                 </p>
                 {balance.books.surplus > 0 ? (
                   <div className="flex items-center gap-2 justify-end">
                     <Badge className="text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/30">
-                      Crédit : +{formatCurrency(balance.books.surplus)}
+                      Crédit : +{formatNumber(balance.books.surplus)}
                     </Badge>
                     {isAdmin && (
                       <Button
@@ -152,7 +150,7 @@ export default function StudentBalanceCard({ studentId }: Props) {
                   <Badge variant="default" className="text-[10px]">Payé</Badge>
                 ) : (
                   <Badge variant="secondary" className="text-[10px]">
-                    Reste : {formatCurrency(balance.books.amountRemaining)}
+                    Reste : {formatNumber(balance.books.amountRemaining)}
                   </Badge>
                 )}
               </div>
@@ -194,7 +192,7 @@ export default function StudentBalanceCard({ studentId }: Props) {
                 </div>
                 {Number(transferAmount) > maxTransfer && (
                   <p className="text-[10px] text-destructive">
-                    Maximum : {formatCurrency(maxTransfer)}
+                    Maximum : {formatNumber(maxTransfer)}
                   </p>
                 )}
               </div>
@@ -206,20 +204,20 @@ export default function StudentBalanceCard({ studentId }: Props) {
                 <p className="text-sm font-semibold">Total</p>
                 <div className="text-right">
                   <p className="text-sm font-semibold">
-                    {formatCurrency(balance.total.amountPaid)} / {formatCurrency(balance.total.amountDue)}
+                    {formatNumber(balance.total.amountPaid)} / {formatNumber(balance.total.amountDue)}
                   </p>
                   {balance.total.scholarshipDiscount > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Bourse : -{formatCurrency(balance.total.scholarshipDiscount)}
+                      Bourse : -{formatNumber(balance.total.scholarshipDiscount)}
                     </p>
                   )}
                   {balance.total.surplus > 0 ? (
                     <p className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                      Crédit : +{formatCurrency(balance.total.surplus)}
+                      Crédit : +{formatNumber(balance.total.surplus)}
                     </p>
                   ) : balance.total.amountRemaining > 0 ? (
                     <p className="text-xs text-destructive font-medium">
-                      Reste : {formatCurrency(balance.total.amountRemaining)}
+                      Reste : {formatNumber(balance.total.amountRemaining)}
                     </p>
                   ) : null}
                 </div>

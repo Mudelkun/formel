@@ -38,6 +38,69 @@ function encodeCursor(student) {
   ).toString('base64url');
 }
 
+/**
+ * Build a SQL expression that evaluates to true when a student has overdue
+ * payments, taking scholarships into account.
+ *
+ * Mirrors the logic in balance.service.js:
+ *   effectiveOverdue = rawOverdue * (1 - discountRatio) - overdueAnnulations
+ *   hasOverdue = effectiveOverdue > totalPaid
+ */
+function buildHasOverdueSql(today) {
+  // Total versement amount for the class group + school year
+  const vTotal = sql`(
+    SELECT COALESCE(SUM(${versements.amount}), 0)
+    FROM ${versements}
+    WHERE ${versements.classGroupId} = ${classes.classGroupId}
+      AND ${versements.schoolYearId} = ${enrollments.schoolYearId}
+  )`;
+
+  // Discount ratio from proportional scholarships (full, partial, fixed_amount), capped at 1
+  const discountRatio = sql`LEAST(1, COALESCE((
+    SELECT SUM(
+      CASE
+        WHEN ${scholarships.type} = 'full' THEN 1
+        WHEN ${scholarships.type} = 'partial' THEN ${scholarships.percentage}::numeric / 100
+        WHEN ${scholarships.type} = 'fixed_amount' THEN ${scholarships.fixedAmount}::numeric / NULLIF(${vTotal}, 0)
+        ELSE 0
+      END
+    )
+    FROM ${scholarships}
+    WHERE ${scholarships.enrollmentId} = ${enrollments.id}
+      AND ${scholarships.type} IN ('full', 'partial', 'fixed_amount')
+  ), 0))`;
+
+  // Sum of versement_annulation amounts targeting overdue versements
+  const overdueAnnulations = sql`COALESCE((
+    SELECT SUM(${scholarships.fixedAmount}::numeric)
+    FROM ${scholarships}
+    INNER JOIN ${versements} ON ${scholarships.targetVersementId} = ${versements.id}
+    WHERE ${scholarships.enrollmentId} = ${enrollments.id}
+      AND ${scholarships.type} = 'versement_annulation'
+      AND ${versements.dueDate} <= ${today}
+  ), 0)`;
+
+  // Raw overdue versement total (before scholarship adjustments)
+  const rawOverdue = sql`(
+    SELECT COALESCE(SUM(${versements.amount}), 0)
+    FROM ${versements}
+    WHERE ${versements.classGroupId} = ${classes.classGroupId}
+      AND ${versements.schoolYearId} = ${enrollments.schoolYearId}
+      AND ${versements.dueDate} <= ${today}
+  )`;
+
+  // Total completed non-book payments
+  const totalPaid = sql`(
+    SELECT COALESCE(SUM(${payments.amount}), 0)
+    FROM ${payments}
+    WHERE ${payments.enrollmentId} = ${enrollments.id}
+      AND ${payments.status} = 'completed'
+      AND ${payments.isBookPayment} = false
+  )`;
+
+  return sql`GREATEST(0, ${rawOverdue} * (1 - ${discountRatio}) - ${overdueAnnulations}) > ${totalPaid}`;
+}
+
 async function listStudents({ name, status, enrollmentStatus, overdue, classId, scholarship, cursor, limit }) {
   const conditions = [];
 
@@ -51,7 +114,14 @@ async function listStudents({ name, status, enrollmentStatus, overdue, classId, 
 
   // Filter by enrollment status (defaults to 'enrolled' if not specified)
   const effectiveEnrollmentStatus = enrollmentStatus || 'enrolled';
-  conditions.push(eq(enrollments.status, effectiveEnrollmentStatus));
+  const isGraduatedFilter = effectiveEnrollmentStatus === 'graduated';
+
+  if (isGraduatedFilter) {
+    // Graduated students are identified by students.status, not enrollment
+    conditions.push(eq(students.status, 'graduated'));
+  } else {
+    conditions.push(eq(enrollments.status, effectiveEnrollmentStatus));
+  }
 
   if (scholarship === 'true') {
     conditions.push(eq(students.scholarshipRecipient, true));
@@ -59,22 +129,10 @@ async function listStudents({ name, status, enrollmentStatus, overdue, classId, 
     conditions.push(eq(students.scholarshipRecipient, false));
   }
 
-  // Filter students with unpaid overdue versements
-  if (overdue === 'true') {
+  // Filter students with unpaid overdue versements (scholarship-aware)
+  if (overdue === 'true' && !isGraduatedFilter) {
     const today = new Date().toISOString().split('T')[0];
-    conditions.push(sql`(
-      SELECT COALESCE(SUM(${versements.amount}), 0)
-      FROM ${versements}
-      WHERE ${versements.classGroupId} = ${classes.classGroupId}
-        AND ${versements.schoolYearId} = ${enrollments.schoolYearId}
-        AND ${versements.dueDate} <= ${today}
-    ) > (
-      SELECT COALESCE(SUM(${payments.amount}), 0)
-      FROM ${payments}
-      WHERE ${payments.enrollmentId} = ${enrollments.id}
-        AND ${payments.status} = 'completed'
-        AND ${payments.isBookPayment} = false
-    )`);
+    conditions.push(buildHasOverdueSql(today));
   }
 
   // Cursor-based keyset condition: (lastName, firstName, id) > (cursorLN, cursorFN, cursorID)
@@ -91,59 +149,80 @@ async function listStudents({ name, status, enrollmentStatus, overdue, classId, 
 
   const today = new Date().toISOString().split('T')[0];
 
-  const selectFields = {
-    id: students.id,
-    nie: students.nie,
-    firstName: students.firstName,
-    lastName: students.lastName,
-    gender: students.gender,
-    birthDate: students.birthDate,
-    address: students.address,
-    scholarshipRecipient: students.scholarshipRecipient,
-    status: students.status,
-    profilePhotoUrl: students.profilePhotoUrl,
-    createdAt: students.createdAt,
-    updatedAt: students.updatedAt,
-    className: classes.name,
-    gradeLevel: classes.gradeLevel,
-    enrollmentStatus: enrollments.status,
-    hasOverdue: sql`(
-      SELECT COALESCE(SUM(${versements.amount}), 0)
-      FROM ${versements}
-      WHERE ${versements.classGroupId} = ${classes.classGroupId}
-        AND ${versements.schoolYearId} = ${enrollments.schoolYearId}
-        AND ${versements.dueDate} <= ${today}
-    ) > (
-      SELECT COALESCE(SUM(${payments.amount}), 0)
-      FROM ${payments}
-      WHERE ${payments.enrollmentId} = ${enrollments.id}
-        AND ${payments.status} = 'completed'
-        AND ${payments.isBookPayment} = false
-    )`.as('has_overdue'),
-  };
+  let query, countQuery;
 
-  const baseJoins = (qb) =>
-    qb
+  if (isGraduatedFilter) {
+    // Graduated students: query from students table directly, left join for last known class
+    const selectFields = {
+      id: students.id,
+      nie: students.nie,
+      firstName: students.firstName,
+      lastName: students.lastName,
+      gender: students.gender,
+      birthDate: students.birthDate,
+      address: students.address,
+      scholarshipRecipient: students.scholarshipRecipient,
+      status: students.status,
+      profilePhotoUrl: students.profilePhotoUrl,
+      createdAt: students.createdAt,
+      updatedAt: students.updatedAt,
+      className: sql`NULL`.as('class_name'),
+      gradeLevel: sql`NULL`.as('grade_level'),
+      enrollmentStatus: sql`'graduated'`.as('enrollment_status'),
+      hasOverdue: sql`false`.as('has_overdue'),
+    };
+
+    query = db.select(selectFields)
       .from(students)
-      .innerJoin(enrollments, eq(enrollments.studentId, students.id))
-      .innerJoin(classes, eq(enrollments.classId, classes.id))
-      .innerJoin(schoolYears, and(
-        eq(enrollments.schoolYearId, schoolYears.id),
-        eq(schoolYears.isActive, true)
-      ));
+      .where(where)
+      .limit(limit + 1)
+      .orderBy(students.lastName, students.firstName, students.id);
 
-  const effectiveWhere = classId
-    ? and(eq(enrollments.classId, classId), where)
-    : where;
+    countQuery = db.select({ total: count() })
+      .from(students)
+      .where(where);
+  } else {
+    const selectFields = {
+      id: students.id,
+      nie: students.nie,
+      firstName: students.firstName,
+      lastName: students.lastName,
+      gender: students.gender,
+      birthDate: students.birthDate,
+      address: students.address,
+      scholarshipRecipient: students.scholarshipRecipient,
+      status: students.status,
+      profilePhotoUrl: students.profilePhotoUrl,
+      createdAt: students.createdAt,
+      updatedAt: students.updatedAt,
+      className: classes.name,
+      gradeLevel: classes.gradeLevel,
+      enrollmentStatus: enrollments.status,
+      hasOverdue: sql`${buildHasOverdueSql(today)}`.as('has_overdue'),
+    };
 
-  // Fetch limit + 1 to determine if there's a next page
-  const query = baseJoins(db.select(selectFields))
-    .where(effectiveWhere)
-    .limit(limit + 1)
-    .orderBy(students.lastName, students.firstName, students.id);
+    const baseJoins = (qb) =>
+      qb
+        .from(students)
+        .innerJoin(enrollments, eq(enrollments.studentId, students.id))
+        .innerJoin(classes, eq(enrollments.classId, classes.id))
+        .innerJoin(schoolYears, and(
+          eq(enrollments.schoolYearId, schoolYears.id),
+          eq(schoolYears.isActive, true)
+        ));
 
-  const countQuery = baseJoins(db.select({ total: count() }))
-    .where(effectiveWhere);
+    const effectiveWhere = classId
+      ? and(eq(enrollments.classId, classId), where)
+      : where;
+
+    query = baseJoins(db.select(selectFields))
+      .where(effectiveWhere)
+      .limit(limit + 1)
+      .orderBy(students.lastName, students.firstName, students.id);
+
+    countQuery = baseJoins(db.select({ total: count() }))
+      .where(effectiveWhere);
+  }
 
   const [rows, [{ total: totalCount }]] = await Promise.all([query, countQuery]);
 
@@ -349,7 +428,16 @@ async function promoteStudent(studentId) {
     .limit(1);
 
   if (!nextClass) {
-    throw new AppError(400, 'No class found for the next grade level');
+    // No higher grade — mark student as graduated
+    await db.update(students)
+      .set({ status: 'graduated', updatedAt: new Date() })
+      .where(eq(students.id, studentId));
+
+    await db.update(enrollments)
+      .set({ status: 'graduated', updatedAt: new Date() })
+      .where(eq(enrollments.id, currentEnrollment.id));
+
+    return { enrollment: null, className: null, gradeLevel: null, graduated: true };
   }
 
   // Re-map scholarships if class group changed
@@ -362,7 +450,7 @@ async function promoteStudent(studentId) {
     .where(eq(enrollments.id, currentEnrollment.id))
     .returning();
 
-  return { enrollment: updated, className: nextClass.name, gradeLevel: nextClass.gradeLevel };
+  return { enrollment: updated, className: nextClass.name, gradeLevel: nextClass.gradeLevel, graduated: false };
 }
 
 async function downgradeStudent(studentId) {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useDeferredValue } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { listEnrollments } from '@/api/enrollments';
@@ -7,6 +7,7 @@ import EmptyState from '@/components/EmptyState';
 import CursorPagination from '@/components/CursorPagination';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -17,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useClasses, useSchoolYears } from '@/hooks/use-students';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Search } from 'lucide-react';
 
 export default function EnrollmentsPage() {
   const navigate = useNavigate();
@@ -31,6 +32,8 @@ export default function EnrollmentsPage() {
   const PAGE_SIZE = 20;
   const [schoolYearId, setSchoolYearId] = useState<string>('');
   const [classId, setClassId] = useState<string>('');
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);
   const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined]);
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -44,11 +47,12 @@ export default function EnrollmentsPage() {
   const currentCursor = cursorStack[pageIndex];
 
   const { data: enrollmentsData, isLoading: enrollmentsLoading } = useQuery({
-    queryKey: ['enrollments', 'list', { schoolYearId: effectiveYearId, classId: classId || undefined, cursor: currentCursor }],
+    queryKey: ['enrollments', 'list', { schoolYearId: effectiveYearId, classId: classId || undefined, search: deferredSearch || undefined, cursor: currentCursor }],
     queryFn: () =>
       listEnrollments({
         schoolYearId: effectiveYearId || undefined,
         classId: classId || undefined,
+        search: deferredSearch || undefined,
         cursor: currentCursor,
         limit: PAGE_SIZE,
       }),
@@ -88,6 +92,18 @@ export default function EnrollmentsPage() {
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un élève..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  resetPagination();
+                }}
+                className="h-8 pl-8 text-sm"
+              />
+            </div>
             <select
               value={schoolYearId || effectiveYearId}
               onChange={(e) => {

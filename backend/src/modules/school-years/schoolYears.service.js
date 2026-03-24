@@ -3,6 +3,7 @@ const { db } = require('../../config/database');
 const { schoolYears } = require('../../db/schema/schoolYears');
 const { enrollments } = require('../../db/schema/enrollments');
 const { classes } = require('../../db/schema/classes');
+const { students } = require('../../db/schema/students');
 const { AppError } = require('../../lib/apiError');
 const { logAudit } = require('../../lib/auditLogger');
 
@@ -171,6 +172,7 @@ async function promoteStudents(targetSchoolYearId, userId) {
 
   let promoted = 0;
   let skipped = 0;
+  let graduated = 0;
 
   const result = await db.transaction(async (tx) => {
     for (const se of sourceEnrollments) {
@@ -184,8 +186,11 @@ async function promoteStudents(targetSchoolYearId, userId) {
       const nextClassId = classByGrade[nextGrade];
 
       if (!nextClassId) {
-        // No class for next grade level (graduated or no class defined)
-        skipped++;
+        // No class for next grade level — mark student as graduated
+        await tx.update(students)
+          .set({ status: 'graduated', updatedAt: new Date() })
+          .where(eq(students.id, se.studentId));
+        graduated++;
         continue;
       }
 
@@ -199,7 +204,7 @@ async function promoteStudents(targetSchoolYearId, userId) {
       promoted++;
     }
 
-    return { promoted, skipped };
+    return { promoted, skipped, graduated };
   });
 
   logAudit(userId, 'promote', 'school_years', targetSchoolYearId, { sourceYearId: sourceYear.id }, result);

@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { toast } from 'sonner';
 import { useAuth } from '@/context/auth';
 import { usePayment, useUpdatePayment, usePaymentDocuments, useUploadPaymentDocument, useDeletePaymentDocument } from '@/hooks/use-payments';
 import { useCurrency } from '@/hooks/use-currency';
@@ -64,6 +65,12 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
+      const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+      if (file.size > MAX_SIZE) {
+        toast.error('Le fichier dépasse la taille maximale de 10 Mo. Veuillez choisir un fichier plus petit.');
+        e.target.value = '';
+        return;
+      }
       uploadDoc.mutate(file);
       e.target.value = '';
     }

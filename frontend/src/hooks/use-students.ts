@@ -272,7 +272,11 @@ export function usePromoteStudent(id: string) {
       queryClient.invalidateQueries({ queryKey: ['students', id, 'balance'] });
       queryClient.invalidateQueries({ queryKey: ['enrollments', 'scholarships'] });
       queryClient.invalidateQueries({ queryKey: ['finance'] });
-      toast.success(`Élève promu en ${result.className}`);
+      if (result.graduated) {
+        toast.success('Élève marqué comme diplômé');
+      } else {
+        toast.success(`Élève promu en ${result.className}`);
+      }
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || 'Erreur lors de la promotion');
@@ -405,7 +409,10 @@ export function usePromoteStudents() {
       queryClient.invalidateQueries({ queryKey: ['enrollments'] });
       queryClient.invalidateQueries({ queryKey: ['students', 'list'] });
       queryClient.invalidateQueries({ queryKey: ['finance'] });
-      toast.success(`${result.promoted} élèves promus, ${result.skipped} ignorés`);
+      const parts = [`${result.promoted} élèves promus`];
+      if (result.graduated > 0) parts.push(`${result.graduated} diplômés`);
+      if (result.skipped > 0) parts.push(`${result.skipped} ignorés`);
+      toast.success(parts.join(', '));
     },
     onError: () => {
       toast.error('Erreur lors de la promotion');

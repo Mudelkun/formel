@@ -97,24 +97,6 @@ export default function StudentPhotoCard({ student }: Props) {
           {student.currentEnrollment && (
             <p className="text-sm text-muted-foreground">{student.currentEnrollment.className}</p>
           )}
-          <div className="mt-2">
-            <StudentStatusBadge status={student.status} />
-          </div>
-
-          {/* Status change */}
-          {canEdit && (
-            <div className="mt-4 w-full">
-              <select
-                value={student.status}
-                onChange={(e) => handleStatusChange(e.target.value)}
-                className="w-full h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                {statusOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
         </CardContent>
       </Card>
 
