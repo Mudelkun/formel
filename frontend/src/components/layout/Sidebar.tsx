@@ -4,12 +4,15 @@ import { getNavigationForRole } from './navigation';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { GraduationCap } from 'lucide-react';
+import { usePendingPaymentsCount } from '@/hooks/use-payments';
 
 export default function Sidebar() {
   const { user } = useAuth();
   if (!user) return null;
 
   const groups = getNavigationForRole(user.role);
+  const canSeeBadge = user.role === 'admin' || user.role === 'secretary';
+  const { data: pendingCount } = usePendingPaymentsCount(canSeeBadge);
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r bg-sidebar text-sidebar-foreground">
@@ -43,7 +46,14 @@ export default function Sidebar() {
                     )
                   }
                 >
-                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className="relative shrink-0">
+                    <item.icon className="h-4 w-4" />
+                    {item.href === '/payments' && canSeeBadge && !!pendingCount && pendingCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none">
+                        {pendingCount > 99 ? '99+' : pendingCount}
+                      </span>
+                    )}
+                  </span>
                   {item.label}
                 </NavLink>
               ))}

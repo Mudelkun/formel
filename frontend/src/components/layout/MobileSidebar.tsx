@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/s
 import { Button } from '@/components/ui/button';
 import { Menu, GraduationCap } from 'lucide-react';
 import { useState } from 'react';
+import { usePendingPaymentsCount } from '@/hooks/use-payments';
 
 export default function MobileSidebar() {
   const { user } = useAuth();
@@ -15,6 +16,8 @@ export default function MobileSidebar() {
   if (!user) return null;
 
   const groups = getNavigationForRole(user.role);
+  const canSeeBadge = user.role === 'admin' || user.role === 'secretary';
+  const { data: pendingCount } = usePendingPaymentsCount(canSeeBadge);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -54,7 +57,14 @@ export default function MobileSidebar() {
                       )
                     }
                   >
-                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span className="relative shrink-0">
+                      <item.icon className="h-4 w-4" />
+                      {item.href === '/payments' && canSeeBadge && !!pendingCount && pendingCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none">
+                          {pendingCount > 99 ? '99+' : pendingCount}
+                        </span>
+                      )}
+                    </span>
                     {item.label}
                   </NavLink>
                 ))}

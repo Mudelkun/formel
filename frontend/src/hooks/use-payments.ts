@@ -2,6 +2,16 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { toast } from 'sonner';
 import { listAllPayments, getPayment, updatePayment, createPaymentForEnrollment, listPaymentDocuments, uploadPaymentDocument, deletePaymentDocument } from '@/api/payments';
 
+export function usePendingPaymentsCount(enabled: boolean) {
+  return useQuery({
+    queryKey: ['payments', 'pending-count'],
+    queryFn: () => listAllPayments({ status: 'pending', limit: 1 }),
+    enabled,
+    refetchInterval: 60_000,
+    select: (data) => data.pagination.totalCount,
+  });
+}
+
 export function usePayments(filters: { status?: string; search?: string; classId?: string; classGroupId?: string; cursor?: string; limit?: number } = {}) {
   return useQuery({
     queryKey: ['payments', 'list', filters],
