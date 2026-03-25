@@ -11,6 +11,7 @@ import { getFees } from '@/api/class-groups';
 import { generateAnnualReportPdf, generateMonthlyReportPdf } from '@/lib/generate-finance-report-pdf';
 import type { AnnualReportData } from '@/lib/generate-finance-report-pdf';
 import VersementFinanceRow from '@/components/finance/VersementFinanceRow';
+import BulkMessageDialog from '@/components/messaging/BulkMessageDialog';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { CreditCard, TrendingUp, AlertTriangle, Gift, Download, Loader2, ChevronDown, Calendar, FileText } from 'lucide-react';
+import { CreditCard, TrendingUp, AlertTriangle, Gift, Download, Loader2, ChevronDown, Calendar, FileText, Mail } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -145,6 +146,7 @@ export default function FinancePage() {
   const groups = groupsData?.data ?? [];
 
   const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
 
   const totalScholarships = summary?.total_scholarships ?? 0;
   const collectionRate = summary && summary.total_expected > 0
@@ -249,6 +251,12 @@ export default function FinancePage() {
             <Badge variant="outline" className="text-sm">
               {activeYear.year}
             </Badge>
+          )}
+          {canDownload && (
+            <Button variant="outline" size="sm" onClick={() => setReminderDialogOpen(true)}>
+              <Mail className="h-3.5 w-3.5" />
+              Rappels de paiement
+            </Button>
           )}
           {canDownload && (
             <DropdownMenu>
@@ -520,6 +528,12 @@ export default function FinancePage() {
           </Card>
         )}
       </div>
+      <BulkMessageDialog
+        open={reminderDialogOpen}
+        onOpenChange={setReminderDialogOpen}
+        classGroups={groups}
+        defaultRecipientType="outstanding_balance"
+      />
     </>
   );
 }

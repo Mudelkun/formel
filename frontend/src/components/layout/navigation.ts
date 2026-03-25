@@ -10,6 +10,7 @@ import {
   BarChart3,
   FileText,
   Settings,
+  Mail,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -92,6 +93,12 @@ export const navigation: NavGroup[] = [
   {
     title: 'Administration',
     items: [
+      {
+        label: 'Messagerie',
+        href: '/messaging',
+        icon: Mail,
+        roles: ['admin'],
+      },
       {
         label: 'Utilisateurs',
         href: '/users',

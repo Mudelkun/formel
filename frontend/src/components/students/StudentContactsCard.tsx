@@ -129,6 +129,7 @@ export default function StudentContactsCard({ student }: Props) {
       {messageContact && (
         <SendMessageDialog
           contact={messageContact}
+          studentId={student.id}
           open={!!messageContact}
           onOpenChange={(open) => !open && setMessageContact(null)}
         />

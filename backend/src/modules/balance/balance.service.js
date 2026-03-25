@@ -1,4 +1,4 @@
-const { eq, and, sum } = require('drizzle-orm');
+const { eq, and, sum, inArray } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { students } = require('../../db/schema/students');
 const { enrollments } = require('../../db/schema/enrollments');
@@ -297,4 +297,146 @@ async function transferCredit(studentId, { from, amount }) {
   return getBalance(studentId);
 }
 
-module.exports = { getBalance, transferCredit, computeDiscounts, computeTotalDiscount };
+/**
+ * Bulk balance computation for multiple students.
+ *
+ * Replaces N×6 sequential getBalance() calls with 5 parallel bulk queries
+ * + O(N) in-memory computation. Total DB round trips: O(1).
+ *
+ * @param {Array<{enrollmentId, studentId, classGroupId, schoolYearId}>} enrollmentData
+ * @param {string} activeYearId
+ * @returns {Promise<Map<studentId, balance>>}
+ */
+async function getBulkBalances(enrollmentData, activeYearId) {
+  if (enrollmentData.length === 0) return new Map();
+
+  const classGroupIds = [...new Set(enrollmentData.map((e) => e.classGroupId))];
+  const enrollmentIds = enrollmentData.map((e) => e.enrollmentId);
+
+  // 5 queries fired in parallel — independent of N
+  const [versementList, feeConfigList, scholarshipList, nonBookSums, bookSums] = await Promise.all([
+    db.select()
+      .from(versements)
+      .where(and(inArray(versements.classGroupId, classGroupIds), eq(versements.schoolYearId, activeYearId)))
+      .orderBy(versements.number),
+
+    db.select()
+      .from(feeConfigs)
+      .where(and(inArray(feeConfigs.classGroupId, classGroupIds), eq(feeConfigs.schoolYearId, activeYearId))),
+
+    db.select()
+      .from(scholarships)
+      .where(inArray(scholarships.enrollmentId, enrollmentIds)),
+
+    db.select({ enrollmentId: payments.enrollmentId, total: sum(payments.amount) })
+      .from(payments)
+      .where(and(inArray(payments.enrollmentId, enrollmentIds), eq(payments.status, 'completed'), eq(payments.isBookPayment, false)))
+      .groupBy(payments.enrollmentId),
+
+    db.select({ enrollmentId: payments.enrollmentId, total: sum(payments.amount) })
+      .from(payments)
+      .where(and(inArray(payments.enrollmentId, enrollmentIds), eq(payments.status, 'completed'), eq(payments.isBookPayment, true)))
+      .groupBy(payments.enrollmentId),
+  ]);
+
+  // Build lookup maps for O(1) access per student
+  const versementsByGroup = new Map();
+  for (const v of versementList) {
+    if (!versementsByGroup.has(v.classGroupId)) versementsByGroup.set(v.classGroupId, []);
+    versementsByGroup.get(v.classGroupId).push(v);
+  }
+  const feeConfigByGroup = new Map(feeConfigList.map((f) => [f.classGroupId, f]));
+  const scholarshipsByEnrollment = new Map();
+  for (const s of scholarshipList) {
+    if (!scholarshipsByEnrollment.has(s.enrollmentId)) scholarshipsByEnrollment.set(s.enrollmentId, []);
+    scholarshipsByEnrollment.get(s.enrollmentId).push(s);
+  }
+  const nonBookPaidMap = new Map(nonBookSums.map((r) => [r.enrollmentId, Number(r.total || 0)]));
+  const bookPaidMap = new Map(bookSums.map((r) => [r.enrollmentId, Number(r.total || 0)]));
+
+  const result = new Map();
+  const now = new Date();
+
+  // O(N) in-memory computation — no further DB calls
+  for (const { enrollmentId, studentId, classGroupId } of enrollmentData) {
+    const feeConfig = feeConfigByGroup.get(classGroupId);
+    const bookFee = feeConfig ? Number(feeConfig.bookFee) : 0;
+    const versementsForGroup = versementsByGroup.get(classGroupId) || [];
+    const enrollmentScholarships = scholarshipsByEnrollment.get(enrollmentId) || [];
+    const totalNonBookPaid = nonBookPaidMap.get(enrollmentId) || 0;
+    const totalBookPaid = bookPaidMap.get(enrollmentId) || 0;
+
+    const versementsTotal = versementsForGroup.reduce((s, v) => s + Number(v.amount), 0);
+    const { proportionalDiscount, versementAnnulations, bookAnnulation } = computeDiscounts(enrollmentScholarships, versementsTotal);
+    const discountRatio = versementsTotal > 0 ? Math.min(proportionalDiscount, versementsTotal) / versementsTotal : 0;
+    const effectiveBookFee = Math.max(0, Math.round((bookFee - Math.min(bookAnnulation, bookFee)) * 100) / 100);
+
+    const effectiveVersements = versementsForGroup.map((v) => {
+      const baseEffective = Number(v.amount) * (1 - discountRatio);
+      const annulation = versementAnnulations.get(v.id) || 0;
+      return { ...v, effectiveAmount: Math.max(0, Math.round((baseEffective - annulation) * 100) / 100) };
+    });
+
+    let remaining = totalNonBookPaid;
+    const versementDetails = effectiveVersements.map((v) => {
+      const due = v.effectiveAmount;
+      const paid = Math.min(remaining, due);
+      remaining -= paid;
+      const rawRemaining = Math.round((due - paid) * 100) / 100;
+      const dueDate = new Date(v.dueDate + 'T23:59:59');
+      return {
+        id: v.id,
+        number: v.number,
+        name: v.name,
+        amount: v.amount,
+        effectiveAmount: due,
+        dueDate: v.dueDate,
+        amountPaid: Math.round(paid * 100) / 100,
+        amountRemaining: Math.max(0, rawRemaining),
+        isPaidInFull: paid >= due,
+        isOverdue: rawRemaining > 0 && now > dueDate,
+      };
+    });
+
+    const tuitionSurplus = Math.round(Math.max(0, remaining) * 100) / 100;
+    const bookAmountRemaining = Math.round((effectiveBookFee - totalBookPaid) * 100) / 100;
+    const bookSurplus = Math.round(Math.max(0, -bookAmountRemaining) * 100) / 100;
+    const effectiveTuitionTotal = effectiveVersements.reduce((s, v) => s + v.effectiveAmount, 0);
+    const totalTuition = versementsTotal + bookFee;
+    const totalDiscount = Math.round((totalTuition - effectiveTuitionTotal - effectiveBookFee) * 100) / 100;
+    const amountDue = Math.round((effectiveTuitionTotal + effectiveBookFee) * 100) / 100;
+    const totalPaid = Math.round((totalNonBookPaid + totalBookPaid) * 100) / 100;
+    const totalRemaining = Math.max(0, Math.round((amountDue - totalPaid) * 100) / 100);
+    const totalSurplus = Math.round(Math.max(0, totalPaid - amountDue) * 100) / 100;
+
+    const currentVersement = versementDetails.find((v) => !v.isPaidInFull) || null;
+
+    result.set(studentId, {
+      versements: versementDetails,
+      books: {
+        fee: bookFee,
+        effectiveFee: effectiveBookFee,
+        amountPaid: Math.round(totalBookPaid * 100) / 100,
+        amountRemaining: Math.max(0, bookAmountRemaining),
+        surplus: bookSurplus,
+      },
+      total: {
+        tuition: totalTuition,
+        scholarshipDiscount: Math.round(totalDiscount * 100) / 100,
+        amountDue,
+        amountPaid: totalPaid,
+        amountRemaining: totalRemaining,
+        tuitionSurplus,
+        bookSurplus,
+        surplus: totalSurplus,
+      },
+      currentVersement: currentVersement
+        ? { number: currentVersement.number, name: currentVersement.name, amountRemaining: currentVersement.amountRemaining }
+        : null,
+    });
+  }
+
+  return result;
+}
+
+module.exports = { getBalance, getBulkBalances, transferCredit, computeDiscounts, computeTotalDiscount };

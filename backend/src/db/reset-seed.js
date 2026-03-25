@@ -69,7 +69,7 @@ const CLASS_GROUPS_DEF = [
 
 const CLASSES_DEF = [
   // Préscolaire
-  { name: 'Toute Petite Section', gradeLevel: 1, group: 'Préscolaire' },
+  { name: 'Pre Petite Section', gradeLevel: 1, group: 'Préscolaire' },
   { name: 'Petite Section', gradeLevel: 2, group: 'Préscolaire' },
   { name: 'Moyenne Section', gradeLevel: 3, group: 'Préscolaire' },
   { name: 'Grande Section', gradeLevel: 4, group: 'Préscolaire' },
@@ -196,7 +196,7 @@ async function seedUsers() {
 
 async function seedSchoolSettings() {
   await db.insert(schema.schoolSettings).values({
-    schoolName: 'École Formel',
+    schoolName: 'École Test',
     address: 'Port-au-Prince, Haïti',
     phone: '+509 00 000 0000',
     email: 'contact@formel.school',

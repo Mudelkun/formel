@@ -18,6 +18,7 @@ import FinancePage from '@/pages/FinancePage';
 import UsersPage from '@/pages/UsersPage';
 import AuditLogsPage from '@/pages/AuditLogsPage';
 import SettingsPage from '@/pages/SettingsPage';
+import MessagingPage from '@/pages/MessagingPage';
 import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -139,6 +140,14 @@ export default function App() {
                   />
 
                   {/* Administration */}
+                  <Route
+                    path="messaging"
+                    element={
+                      <ProtectedRoute roles={['admin']}>
+                        <MessagingPage />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="users"
                     element={
