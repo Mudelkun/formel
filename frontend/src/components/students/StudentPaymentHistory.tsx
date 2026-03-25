@@ -1,9 +1,14 @@
-import { usePayments } from '@/hooks/use-students';
+import { useState } from 'react';
+import { usePayments, useStudentBalance } from '@/hooks/use-students';
+import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/hooks/use-currency';
+import { useSettings } from '@/hooks/use-settings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Receipt } from 'lucide-react';
+import { Receipt, Download, Loader2 } from 'lucide-react';
+import { generatePaymentHistoryPdf } from '@/lib/generate-payment-pdf';
 import type { StudentDetail } from '@/types/student';
 
 interface Props {
@@ -29,17 +34,51 @@ const methodLabels: Record<string, string> = {
 
 export default function StudentPaymentHistory({ student }: Props) {
   const { formatAmount } = useCurrency();
+  const { user } = useAuth();
+  const { data: settings } = useSettings();
   const enrollmentId = student.currentEnrollment?.enrollmentId;
-  const { data, isLoading, isError } = usePayments(enrollmentId);
+  const { data, isLoading, isError, refetch: refetchPayments } = usePayments(enrollmentId);
+  const { data: balance, refetch: refetchBalance } = useStudentBalance(student.id);
   const payments = data?.data ?? [];
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+
+  const canDownload = user?.role === 'admin' && payments.length > 0;
+
+  async function handleDownload() {
+    setIsPdfLoading(true);
+    try {
+      const [paymentsResult, balanceResult] = await Promise.all([
+        refetchPayments(),
+        refetchBalance(),
+      ]);
+      generatePaymentHistoryPdf(
+        student,
+        paymentsResult.data?.data ?? payments,
+        settings,
+        balanceResult.data ?? balance,
+      );
+    } finally {
+      setIsPdfLoading(false);
+    }
+  }
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-medium flex items-center gap-2">
-          <Receipt className="h-4 w-4" />
-          Historique des paiements
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <Receipt className="h-4 w-4" />
+            Historique des paiements
+          </CardTitle>
+          {canDownload && (
+            <Button variant="outline" size="sm" onClick={handleDownload} disabled={isPdfLoading}>
+              {isPdfLoading
+                ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                : <Download className="mr-1.5 h-3.5 w-3.5" />}
+              Télécharger PDF
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {!enrollmentId ? (

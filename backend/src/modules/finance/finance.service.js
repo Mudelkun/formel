@@ -11,7 +11,7 @@ const { students } = require('../../db/schema/students');
 const { computeTotalDiscount, computeDiscounts } = require('../balance/balance.service');
 const { AppError } = require('../../lib/apiError');
 
-async function getSummary({ classId, classGroupId }) {
+async function getSummary({ classId, classGroupId, month }) {
   // Get active school year
   const [activeYear] = await db
     .select()
@@ -92,6 +92,14 @@ async function getSummary({ classId, classGroupId }) {
   }
 
   // FIX #1: Single GROUP BY query for all payment totals instead of N+1
+  const paymentConditions = [
+    inArray(payments.enrollmentId, enrollmentIds),
+    inArray(payments.status, ['completed', 'pending']),
+  ];
+  if (month) {
+    paymentConditions.push(sql`TO_CHAR(${payments.paymentDate}, 'YYYY-MM') = ${month}`);
+  }
+
   const paymentTotals = await db
     .select({
       enrollmentId: payments.enrollmentId,
@@ -99,10 +107,7 @@ async function getSummary({ classId, classGroupId }) {
       total: sum(payments.amount),
     })
     .from(payments)
-    .where(and(
-      inArray(payments.enrollmentId, enrollmentIds),
-      inArray(payments.status, ['completed', 'pending']),
-    ))
+    .where(and(...paymentConditions))
     .groupBy(payments.enrollmentId, payments.status);
 
   // Build lookup map
@@ -381,7 +386,7 @@ async function getMonthlyPayments() {
   }));
 }
 
-async function getGroupBreakdown() {
+async function getGroupBreakdown({ month } = {}) {
   const [activeYear] = await db
     .select()
     .from(schoolYears)
@@ -396,7 +401,7 @@ async function getGroupBreakdown() {
   const results = [];
 
   for (const group of groups) {
-    const summary = await getSummary({ classGroupId: group.id });
+    const summary = await getSummary({ classGroupId: group.id, month });
     results.push({
       id: group.id,
       name: group.name,

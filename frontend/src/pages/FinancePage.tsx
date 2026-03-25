@@ -1,13 +1,31 @@
+import { useState } from 'react';
 import { useFinanceSummary, useGroupBreakdown, useMonthlyPayments } from '@/hooks/use-finance';
 import { useClassGroups, useFees } from '@/hooks/use-class-groups';
 import { useSchoolYears } from '@/hooks/use-students';
+import { useAuth } from '@/context/auth';
 import { useCurrency } from '@/hooks/use-currency';
+import { useSettings } from '@/hooks/use-settings';
+import { toast } from 'sonner';
+import { getFinanceSummary, getGroupBreakdown, getMonthlyPayments, getVersementFinance } from '@/api/finance';
+import { getFees } from '@/api/class-groups';
+import { generateAnnualReportPdf, generateMonthlyReportPdf } from '@/lib/generate-finance-report-pdf';
+import type { AnnualReportData } from '@/lib/generate-finance-report-pdf';
 import VersementFinanceRow from '@/components/finance/VersementFinanceRow';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -15,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { CreditCard, TrendingUp, AlertTriangle, Gift } from 'lucide-react';
+import { CreditCard, TrendingUp, AlertTriangle, Gift, Download, Loader2, ChevronDown, Calendar, FileText } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -113,6 +131,8 @@ function ClassGroupSection({ groupId, groupName, schoolYearId }: { groupId: stri
 
 export default function FinancePage() {
   const { formatAmount } = useCurrency();
+  const { user } = useAuth();
+  const { data: settings } = useSettings();
 
   const { data: schoolYearsData } = useSchoolYears();
   const schoolYears = schoolYearsData?.data ?? [];
@@ -124,10 +144,77 @@ export default function FinancePage() {
   const { data: monthlyData, isLoading: monthlyLoading } = useMonthlyPayments();
   const groups = groupsData?.data ?? [];
 
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+
   const totalScholarships = summary?.total_scholarships ?? 0;
   const collectionRate = summary && summary.total_expected > 0
     ? Math.round((summary.total_collected / summary.total_expected) * 100)
     : 0;
+
+  const canDownload = user?.role === 'admin' && !!activeYear;
+
+  async function handleAnnualDownload() {
+    if (!activeYear) return;
+    setIsPdfLoading(true);
+    try {
+      const [freshSummary, freshBreakdown, freshMonthly] = await Promise.all([
+        getFinanceSummary(),
+        getGroupBreakdown(),
+        getMonthlyPayments(),
+      ]);
+
+      // Fetch versement details for each group
+      const versementDetails: AnnualReportData['versementDetails'] = [];
+      for (const group of groups) {
+        try {
+          const feesData = await getFees(group.id, activeYear.id);
+          const versements = await Promise.all(
+            feesData.versements.map(async (v) => ({
+              name: v.name,
+              dueDate: v.dueDate,
+              finance: await getVersementFinance(v.id),
+            })),
+          );
+          versementDetails.push({ groupName: group.name, versements });
+        } catch {
+          // Skip groups with no fees configured
+          versementDetails.push({ groupName: group.name, versements: [] });
+        }
+      }
+
+      generateAnnualReportPdf(
+        { summary: freshSummary, groupBreakdown: freshBreakdown, monthlyPayments: freshMonthly, versementDetails },
+        settings,
+        activeYear.year,
+      );
+    } catch {
+      toast.error('Erreur lors de la génération du rapport');
+    } finally {
+      setIsPdfLoading(false);
+    }
+  }
+
+  async function handleMonthlyDownload(month: string) {
+    setIsPdfLoading(true);
+    try {
+      const [freshSummary, freshBreakdown] = await Promise.all([
+        getFinanceSummary({ month }),
+        getGroupBreakdown({ month }),
+      ]);
+
+      const monthlyRow = monthlyData?.find((m) => m.month === month);
+
+      generateMonthlyReportPdf(
+        { summary: freshSummary, groupBreakdown: freshBreakdown, monthlyRow },
+        settings,
+        month,
+      );
+    } catch {
+      toast.error('Erreur lors de la génération du rapport');
+    } finally {
+      setIsPdfLoading(false);
+    }
+  }
 
   // Cumulative revenue chart data
   const cumulativeData = (() => {
@@ -157,11 +244,54 @@ export default function FinancePage() {
         title="Aperçu financier"
         description="Vue d'ensemble des recettes et du recouvrement par groupe."
       >
-        {activeYear && (
-          <Badge variant="outline" className="text-sm">
-            {activeYear.year}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {activeYear && (
+            <Badge variant="outline" className="text-sm">
+              {activeYear.year}
+            </Badge>
+          )}
+          {canDownload && (
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" disabled={isPdfLoading} />}>
+                {isPdfLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                Télécharger rapport
+                <ChevronDown className="h-3 w-3 opacity-50" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleAnnualDownload}>
+                  <FileText className="h-4 w-4" />
+                  Rapport annuel {activeYear?.year}
+                </DropdownMenuItem>
+                {monthlyData && monthlyData.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Rapport mensuel</DropdownMenuLabel>
+                      {monthlyData.map((m) => {
+                        const [, mm] = m.month.split('-');
+                        const labels: Record<string, string> = {
+                          '01': 'Janvier', '02': 'Février', '03': 'Mars', '04': 'Avril',
+                          '05': 'Mai', '06': 'Juin', '07': 'Juillet', '08': 'Août',
+                          '09': 'Septembre', '10': 'Octobre', '11': 'Novembre', '12': 'Décembre',
+                        };
+                        return (
+                          <DropdownMenuItem key={m.month} onClick={() => handleMonthlyDownload(m.month)}>
+                            <Calendar className="h-4 w-4" />
+                            {labels[mm] || mm} {m.month.split('-')[0]}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuGroup>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </PageHeader>
 
       {/* Top stats */}

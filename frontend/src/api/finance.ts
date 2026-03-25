@@ -25,7 +25,7 @@ export interface DashboardStats {
   upcomingDueDates: { id: string; name: string; amount: string; dueDate: string; classGroupId: string }[];
 }
 
-export async function getFinanceSummary(params: { classId?: string; classGroupId?: string } = {}): Promise<FinanceSummary> {
+export async function getFinanceSummary(params: { classId?: string; classGroupId?: string; month?: string } = {}): Promise<FinanceSummary> {
   const { data } = await api.get('/finance/summary', { params });
   return data;
 }
@@ -70,8 +70,8 @@ export async function getMonthlyPayments(): Promise<MonthlyPayment[]> {
   return data;
 }
 
-export async function getGroupBreakdown(): Promise<GroupBreakdown[]> {
-  const { data } = await api.get('/finance/group-breakdown');
+export async function getGroupBreakdown(params: { month?: string } = {}): Promise<GroupBreakdown[]> {
+  const { data } = await api.get('/finance/group-breakdown', { params });
   return data;
 }
 

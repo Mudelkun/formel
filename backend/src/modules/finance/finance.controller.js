@@ -21,8 +21,8 @@ const getMonthlyPayments = asyncHandler(async (_req, res) => {
   res.json(result);
 });
 
-const getGroupBreakdown = asyncHandler(async (_req, res) => {
-  const result = await financeService.getGroupBreakdown();
+const getGroupBreakdown = asyncHandler(async (req, res) => {
+  const result = await financeService.getGroupBreakdown({ month: req.query.month });
   res.json(result);
 });
 

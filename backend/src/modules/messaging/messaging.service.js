@@ -27,13 +27,14 @@ async function sendEmail({ contactId, subject, body }) {
   const resend = new Resend(env.RESEND_API_KEY);
 
   const { error } = await resend.emails.send({
-    from: 'Formel <onboarding@resend.dev>',
+    from: env.RESEND_FROM_EMAIL,
     to: contact.email,
     subject,
     text: body,
   });
 
   if (error) {
+    console.error('Resend error:', error);
     throw new AppError(500, `Failed to send email: ${error.message}`);
   }
 
