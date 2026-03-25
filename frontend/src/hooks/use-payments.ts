@@ -35,6 +35,7 @@ export function useCreatePayment() {
       createPaymentForEnrollment(enrollmentId, input, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['finance'] });
       toast.success('Paiement enregistré');
     },
     onError: (error: any) => {
@@ -51,6 +52,7 @@ export function useUpdatePayment() {
       updatePayment(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['finance'] });
       toast.success('Paiement mis à jour');
     },
     onError: () => {

@@ -1,4 +1,4 @@
-const { eq, and, sum, count, gte, lte, desc, inArray, sql } = require('drizzle-orm');
+const { eq, and, sum, count, gte, desc, inArray, sql } = require('drizzle-orm');
 const { db } = require('../../config/database');
 const { enrollments } = require('../../db/schema/enrollments');
 const { classes } = require('../../db/schema/classes');
@@ -8,7 +8,7 @@ const { payments } = require('../../db/schema/payments');
 const { feeConfigs } = require('../../db/schema/feeConfigs');
 const { versements } = require('../../db/schema/versements');
 const { students } = require('../../db/schema/students');
-const { computeTotalDiscount, computeDiscounts } = require('../balance/balance.service');
+const { computeTotalDiscount, computeDiscounts, getBulkBalances } = require('../balance/balance.service');
 const { AppError } = require('../../lib/apiError');
 
 async function getSummary({ classId, classGroupId, month }) {
@@ -274,19 +274,28 @@ async function getDashboardStats() {
   const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
   const today = now.toISOString().split('T')[0];
 
-  // FIX #4: Run all independent queries in parallel
+  // Fetch active enrollments with classGroupId (needed for getBulkBalances)
+  const activeEnrollments = await db
+    .select({
+      enrollmentId: enrollments.id,
+      studentId: enrollments.studentId,
+      classGroupId: classes.classGroupId,
+      schoolYearId: enrollments.schoolYearId,
+    })
+    .from(enrollments)
+    .innerJoin(classes, eq(enrollments.classId, classes.id))
+    .where(and(eq(enrollments.schoolYearId, activeYear.id), eq(enrollments.status, 'enrolled')));
+
+  // Run all independent queries in parallel, including bulk balance computation
   const [
-    [{ studentCount }],
+    balanceMap,
     [{ classCount }],
     [{ monthPayments }],
-    [{ overdueCount }],
     recentPayments,
     upcomingDueDates,
   ] = await Promise.all([
-    // Total students enrolled in active year (only 'enrolled' status)
-    db.select({ studentCount: count() })
-      .from(enrollments)
-      .where(and(eq(enrollments.schoolYearId, activeYear.id), eq(enrollments.status, 'enrolled'))),
+    // Full balance map — correctly accounts for scholarships and payment order
+    getBulkBalances(activeEnrollments, activeYear.id),
 
     // Total classes
     db.select({ classCount: count() })
@@ -300,14 +309,6 @@ async function getDashboardStats() {
         eq(enrollments.schoolYearId, activeYear.id),
         eq(payments.status, 'completed'),
         gte(payments.paymentDate, firstOfMonth),
-      )),
-
-    // FIX #9: Count overdue versements directly in SQL instead of loading + filtering in JS
-    db.select({ overdueCount: count() })
-      .from(versements)
-      .where(and(
-        eq(versements.schoolYearId, activeYear.id),
-        lte(versements.dueDate, today),
       )),
 
     // Recent payments (last 5 completed)
@@ -347,11 +348,20 @@ async function getDashboardStats() {
       .limit(3),
   ]);
 
+  // Count students who have at least one genuinely overdue versement
+  // (amountRemaining > 0 after payment allocation + scholarships, and dueDate has passed)
+  let overdueStudents = 0;
+  for (const balance of balanceMap.values()) {
+    if (balance.versements.some((v) => v.isOverdue)) {
+      overdueStudents++;
+    }
+  }
+
   return {
-    totalStudents: studentCount,
+    totalStudents: activeEnrollments.length,
     totalClasses: classCount,
     paymentsThisMonth: Number(monthPayments || 0),
-    overdueVersements: overdueCount,
+    overdueVersements: overdueStudents,
     recentPayments,
     upcomingDueDates,
   };

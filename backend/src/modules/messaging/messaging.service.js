@@ -9,6 +9,12 @@ const { schoolYears } = require('../../db/schema/schoolYears');
 const { env } = require('../../config/env');
 const { AppError } = require('../../lib/apiError');
 const { getBalance, getBulkBalances } = require('../balance/balance.service');
+const { schoolSettings } = require('../../db/schema/schoolSettings');
+
+async function fetchSchoolSettings() {
+  const [s] = await db.select().from(schoolSettings).limit(1);
+  return s || {};
+}
 
 // ---------------------------------------------------------------------------
 // In-memory job store for background bulk sends
@@ -59,11 +65,13 @@ async function sendEmail({ contactId, subject, body }) {
   const { Resend } = require('resend');
   const resend = new Resend(env.RESEND_API_KEY);
 
+  const school = await fetchSchoolSettings();
+
   const { error } = await resend.emails.send({
     from: env.RESEND_FROM_EMAIL,
     to: contact.email,
     subject,
-    text: body,
+    html: buildCustomEmailHtml(subject, body, school),
   });
 
   if (error) {
@@ -191,7 +199,17 @@ async function getBulkPreview({ recipientType, classGroupId, dueDateBefore, send
   };
 }
 
-function buildPaymentReminderHtml(student, balance) {
+function buildSchoolInfoBlock(school) {
+  const lines = [
+    school.schoolName,
+    school.address,
+    school.phone,
+    school.email,
+  ].filter(Boolean);
+  return lines.map((l) => `<span>${l.replace(/</g, '&lt;')}</span>`).join('<br>');
+}
+
+function buildPaymentReminderHtml(student, balance, school = {}) {
   const fmt = (n) =>
     new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(n) + ' HTG';
 
@@ -200,70 +218,142 @@ function buildPaymentReminderHtml(student, balance) {
   const versementRows = unpaidVersements.map((v) => {
     const partial = v.amountPaid > 0;
     return `<tr>
-      <td style="padding:8px 12px;font-size:13px;color:#111827;border-bottom:1px solid #f3f4f6;">
-        ${v.name}
-        ${partial ? `<span style="margin-left:6px;font-size:11px;color:#6b7280;">(partiel)</span>` : ''}
+      <td style="padding:10px 14px;font-size:13px;color:#1f2937;border-bottom:1px solid #f3f4f6;">
+        ${v.name}${partial ? `&nbsp;<span style="font-size:11px;color:#9ca3af;font-style:italic;">(paiement partiel)</span>` : ''}
       </td>
-      <td style="padding:8px 12px;font-size:13px;color:#374151;border-bottom:1px solid #f3f4f6;">${v.dueDate || '—'}</td>
-      <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#dc2626;text-align:right;border-bottom:1px solid #f3f4f6;">${fmt(v.amountRemaining)}</td>
+      <td style="padding:10px 14px;font-size:13px;color:#6b7280;border-bottom:1px solid #f3f4f6;white-space:nowrap;">${v.dueDate || '—'}</td>
+      <td style="padding:10px 14px;font-size:13px;font-weight:600;color:#dc2626;text-align:right;border-bottom:1px solid #f3f4f6;white-space:nowrap;">${fmt(v.amountRemaining)}</td>
     </tr>`;
   }).join('');
 
   const bookRow = balance.books.amountRemaining > 0
     ? `<tr>
-        <td style="padding:8px 12px;font-size:13px;color:#111827;border-bottom:1px solid #f3f4f6;">
-          Frais de livres
-          ${balance.books.amountPaid > 0 ? `<span style="margin-left:6px;font-size:11px;color:#6b7280;">(partiel)</span>` : ''}
+        <td style="padding:10px 14px;font-size:13px;color:#1f2937;border-bottom:1px solid #f3f4f6;">
+          Frais de livres${balance.books.amountPaid > 0 ? `&nbsp;<span style="font-size:11px;color:#9ca3af;font-style:italic;">(paiement partiel)</span>` : ''}
         </td>
-        <td style="padding:8px 12px;font-size:13px;color:#374151;border-bottom:1px solid #f3f4f6;">—</td>
-        <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#dc2626;text-align:right;border-bottom:1px solid #f3f4f6;">${fmt(balance.books.amountRemaining)}</td>
+        <td style="padding:10px 14px;font-size:13px;color:#6b7280;border-bottom:1px solid #f3f4f6;">—</td>
+        <td style="padding:10px 14px;font-size:13px;font-weight:600;color:#dc2626;text-align:right;border-bottom:1px solid #f3f4f6;white-space:nowrap;">${fmt(balance.books.amountRemaining)}</td>
       </tr>`
     : '';
 
   const hasRows = unpaidVersements.length > 0 || bookRow;
   const versementSection = hasRows
-    ? `<table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:13px;">
+    ? `<table style="width:100%;border-collapse:collapse;margin:24px 0;border-radius:6px;overflow:hidden;border:1px solid #e5e7eb;">
         <thead>
           <tr style="background:#f9fafb;">
-            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e5e7eb;">D&#233;tail</th>
-            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e5e7eb;">&#201;ch&#233;ance</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e5e7eb;">Restant</th>
+            <th style="padding:10px 14px;text-align:left;font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e5e7eb;">D&eacute;tail</th>
+            <th style="padding:10px 14px;text-align:left;font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e5e7eb;">&Eacute;ch&eacute;ance</th>
+            <th style="padding:10px 14px;text-align:right;font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e5e7eb;">Restant d&ucirc;</th>
           </tr>
         </thead>
         <tbody>${versementRows}${bookRow}</tbody>
       </table>`
     : '';
 
+  const schoolInfo = buildSchoolInfoBlock(school);
+
   const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:Arial,sans-serif;background:#f9fafb;margin:0;padding:24px;">
-  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-    <div style="background:#1e40af;padding:28px 24px;text-align:center;">
-      <p style="color:#bfdbfe;margin:6px 0 0;font-size:13px;">Rappel de paiement</p>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rappel de paiement</title>
+</head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#f3f4f6;margin:0;padding:32px 16px;">
+  <div style="max-width:520px;margin:0 auto;">
+    <!-- Header -->
+    <div style="background:#1e3a8a;border-radius:10px 10px 0 0;padding:24px 28px;text-align:center;">
+      <p style="margin:0;font-size:12px;color:#93c5fd;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Rappel de paiement</p>
     </div>
-    <div style="padding:28px 24px;">
-      <p style="color:#111827;font-size:15px;">Cher parent / tuteur de <strong>${student.firstName} ${student.lastName}</strong>,</p>
-      <p style="color:#374151;font-size:14px;line-height:1.6;">Nous vous contactons pour vous informer qu&apos;un solde reste d&ucirc; pour l&apos;ann&eacute;e scolaire en cours.</p>
-      <div style="background:#fef2f2;border-left:4px solid #ef4444;padding:18px 16px;border-radius:4px;margin:24px 0;">
-        <p style="margin:0;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Montant restant d&ucirc;</p>
-        <p style="margin:6px 0 0;font-size:26px;font-weight:700;color:#dc2626;">${fmt(balance.total.amountRemaining)}</p>
+
+    <!-- Body -->
+    <div style="background:#ffffff;padding:32px 28px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
+      <p style="margin:0 0 8px;font-size:15px;color:#111827;">Cher(e) parent&nbsp;/ tuteur de <strong>${student.firstName} ${student.lastName}</strong>,</p>
+      <p style="margin:16px 0 0;font-size:14px;color:#4b5563;line-height:1.7;">
+        Nous nous permettons de vous contacter afin de vous informer qu&rsquo;un solde reste d&ucirc; pour l&rsquo;ann&eacute;e scolaire en cours.
+        Nous vous prions de bien vouloir r&eacute;gulariser cette situation dans les meilleurs d&eacute;lais.
+      </p>
+
+      <!-- Amount box -->
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:20px 24px;margin:24px 0;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Montant total restant d&ucirc;</p>
+        <p style="margin:8px 0 0;font-size:30px;font-weight:800;color:#dc2626;letter-spacing:-0.5px;">${fmt(balance.total.amountRemaining)}</p>
       </div>
+
       ${versementSection}
-      <p style="color:#374151;font-size:14px;line-height:1.6;">Nous vous prions de bien vouloir r&eacute;gulariser ce solde dans les meilleurs d&eacute;lais.</p>
-      <p style="color:#374151;font-size:14px;line-height:1.6;">Pour toute question, n&apos;h&eacute;sitez pas &agrave; contacter l&apos;administration.</p>
+
+      <p style="margin:20px 0 0;font-size:14px;color:#4b5563;line-height:1.7;">
+        Pour effectuer votre paiement ou pour toute question concernant votre situation, veuillez contacter directement l&rsquo;administration de l&rsquo;&eacute;tablissement.
+      </p>
+      <p style="margin:16px 0 0;font-size:14px;color:#4b5563;line-height:1.7;">
+        Nous vous remercions de votre diligence et restons &agrave; votre disposition.
+      </p>
+      <p style="margin:24px 0 0;font-size:14px;color:#374151;">
+        Veuillez agr&eacute;er, cher(e) parent, l&rsquo;expression de nos salutations distingu&eacute;es.
+      </p>
+      <p style="margin:8px 0 0;font-size:14px;font-weight:600;color:#1f2937;">L&rsquo;Administration</p>
     </div>
-    <div style="background:#f3f4f6;padding:16px 24px;text-align:center;font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb;">
-        L&apos;administration de l'ecole
-      </div>
+
+    <!-- Footer: school info -->
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:20px 28px;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Informations de l&rsquo;&eacute;cole</p>
+      <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.8;">${schoolInfo}</p>
+      <p style="margin:12px 0 0;font-size:11px;color:#9ca3af;">Ce message est envoy&eacute; automatiquement &mdash; merci de ne pas r&eacute;pondre directement &agrave; cet email.</p>
+    </div>
   </div>
 </body>
 </html>`;
 
   return {
-    subject: `Rappel de paiement - ${student.firstName} ${student.lastName}`,
+    subject: `Rappel de paiement – ${student.firstName} ${student.lastName}`,
     html,
   };
+}
+
+/**
+ * Wrap a plain-text custom message in a branded HTML email layout.
+ */
+function buildCustomEmailHtml(subject, body, school = {}) {
+  const escapedSubject = subject.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const escapedBody = body
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+
+  const schoolInfo = buildSchoolInfoBlock(school);
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escapedSubject}</title>
+</head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#f3f4f6;margin:0;padding:32px 16px;">
+  <div style="max-width:520px;margin:0 auto;">
+    <!-- Header -->
+    <div style="background:#1e3a8a;border-radius:10px 10px 0 0;padding:24px 28px;text-align:center;">
+      <p style="margin:0;font-size:11px;color:#93c5fd;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Communication officielle</p>
+    </div>
+
+    <!-- Body -->
+    <div style="background:#ffffff;padding:32px 28px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
+      <p style="margin:0 0 20px;font-size:16px;font-weight:600;color:#111827;">${escapedSubject}</p>
+      <div style="font-size:14px;color:#374151;line-height:1.75;">${escapedBody}</div>
+    </div>
+
+    <!-- Footer: school info -->
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:20px 28px;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Informations de l&rsquo;&eacute;cole</p>
+      <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.8;">${schoolInfo}</p>
+      <p style="margin:12px 0 0;font-size:11px;color:#9ca3af;">Ce message est envoy&eacute; automatiquement &mdash; merci de ne pas r&eacute;pondre directement &agrave; cet email.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return html;
 }
 
 /**
@@ -281,6 +371,8 @@ function sendBulkMessages({ recipients, message, sendToAllContacts = false, excl
   setImmediate(async () => {
     job.status = 'running';
     try {
+      const school = await fetchSchoolSettings();
+
       const targets = await resolveRecipients({
         recipientType: recipients.type,
         classGroupId: recipients.classGroupId,
@@ -295,18 +387,18 @@ function sendBulkMessages({ recipients, message, sendToAllContacts = false, excl
       for (const { student, balance, resolvedContacts } of filtered) {
         if (resolvedContacts.length === 0) continue;
 
-        let subject, html, text;
+        let subject, html;
         if (message.type === 'payment_reminder' && balance) {
-          const built = buildPaymentReminderHtml(student, balance);
+          const built = buildPaymentReminderHtml(student, balance, school);
           subject = built.subject;
           html = built.html;
         } else {
           subject = message.subject;
-          text = message.body;
+          html = buildCustomEmailHtml(message.subject, message.body, school);
         }
 
         for (const contact of resolvedContacts) {
-          emailTasks.push({ contact, student, subject, html, text });
+          emailTasks.push({ contact, student, subject, html });
         }
       }
 
@@ -317,11 +409,9 @@ function sendBulkMessages({ recipients, message, sendToAllContacts = false, excl
 
       // Send in batches of 20 concurrently — O(ceil(N/20)) rounds instead of O(N)
       await runWithConcurrency(
-        emailTasks.map(({ contact, student, subject, html, text }) => async () => {
+        emailTasks.map(({ contact, student, subject, html }) => async () => {
           try {
-            const payload = { from: env.RESEND_FROM_EMAIL, to: contact.email, subject };
-            if (html) payload.html = html;
-            else payload.text = text;
+            const payload = { from: env.RESEND_FROM_EMAIL, to: contact.email, subject, html };
 
             const { error } = await resend.emails.send(payload);
             if (error) throw new Error(error.message);
@@ -397,7 +487,8 @@ async function sendStudentPaymentReminder(studentId) {
   const { Resend } = require('resend');
   const resend = new Resend(env.RESEND_API_KEY);
 
-  const { subject, html } = buildPaymentReminderHtml(student, balance);
+  const school = await fetchSchoolSettings();
+  const { subject, html } = buildPaymentReminderHtml(student, balance, school);
 
   const contact = resolvedContacts[0];
   const { error } = await resend.emails.send({

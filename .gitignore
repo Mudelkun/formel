@@ -3,3 +3,8 @@ node_modules/
 dist/
 drizzle/
 .claude/
+
+# Data import files
+backend/src/db/import-2025-2026.js
+grille_de_paiement_2025_2026.xlsx
+grille_de_paiement_2025_2026.csv

@@ -114,8 +114,16 @@ export default function SendMessageDialog({ contact, studentId, open, onOpenChan
                 </Button>
               )}
               {[
-                { label: 'Convocation', subject: 'Convocation - Formel', body: "Cher parent,\n\nNous vous prions de bien vouloir vous présenter à l'établissement pour une rencontre concernant votre enfant.\n\nCordialement,\nL'administration" },
-                { label: 'Information générale', subject: 'Information - Formel', body: "Cher parent,\n\nNous souhaitons vous informer d'une mise à jour importante concernant l'établissement.\n\nCordialement,\nL'administration" },
+                {
+                  label: 'Convocation',
+                  subject: 'Convocation – Formel',
+                  body: "Cher(e) parent / tuteur,\n\nNous avons l'honneur de vous convoquer à une réunion concernant la situation scolaire de votre enfant.\n\nNous vous prions de bien vouloir vous présenter à l'administration à votre plus proche convenance afin de traiter cette affaire en toute confidentialité.\n\nVotre présence est indispensable. Pour convenir d'un rendez-vous ou pour toute information complémentaire, veuillez contacter l'administration directement.\n\nDans l'attente de vous recevoir, nous vous prions d'agréer, cher(e) parent, l'expression de nos salutations distinguées.\n\nL'Administration",
+                },
+                {
+                  label: 'Information générale',
+                  subject: 'Information importante – Formel',
+                  body: "Cher(e) parent / tuteur,\n\nNous vous contactons afin de vous faire part d'une information importante concernant notre établissement.\n\nNous vous remercions de l'attention que vous porterez à ce message et restons à votre entière disposition pour tout renseignement complémentaire.\n\nVeuillez agréer, cher(e) parent, l'expression de nos salutations distinguées.\n\nL'Administration",
+                },
                 { label: 'Personnalisé', subject: '', body: '' },
               ].map((t) => (
                 <Button

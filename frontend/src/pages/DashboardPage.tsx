@@ -103,7 +103,7 @@ export default function DashboardPage() {
           label="Versements en retard"
           value={isLoading ? '—' : String(stats?.overdueVersements ?? 0)}
           icon={AlertTriangle}
-          trend="À surveiller"
+          trend="Élèves avec retard"
         />
       </div>
 

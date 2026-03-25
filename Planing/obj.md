@@ -318,3 +318,16 @@ A clear warning about data deletion
 A confirmation step (Yes / No) before proceeding
 
 This ensures the script is safe to use and prevents accidental data loss.
+
+## Whensday, 25 March dev checkList
+
+ - Create frontend logic to send payment remeinders by due date to all students with outstanding balance to their main contact at once.
+
+ - Create a notification icone for Paiments page that shows the number on payment that have a status of "En attente" to admin and secretary.
+ (The icone can be the same color of the "En attente status or red)
+
+ -  Make readyMade template messages more professional in the sending message to student modal. (We can also impliment some styling to the email that will be sent)
+
+ - Ask claude to copy some data into the system
+
+ - The "Versements en retard" in the tableau de board page should display how many students that have a late payment.

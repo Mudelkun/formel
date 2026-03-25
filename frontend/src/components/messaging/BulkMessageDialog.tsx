@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useBulkPreview, useSendBulkMessages } from '@/hooks/use-messaging';
+import { useBulkPreview, useSendBulkMessages, useBulkJobStatus } from '@/hooks/use-messaging';
 import { useCurrency } from '@/hooks/use-currency';
 import type { RecipientType, MessageType, BulkPreviewStudent } from '@/api/messaging';
 import {
@@ -49,14 +49,14 @@ const MESSAGE_TEMPLATES = [
   {
     label: 'Convocation',
     type: 'custom' as MessageType,
-    subject: 'Convocation - Formel',
-    body: "Cher parent,\n\nNous vous prions de bien vouloir vous présenter à l'établissement pour une rencontre concernant votre enfant.\n\nCordialement,\nL'administration",
+    subject: 'Convocation – Formel',
+    body: "Cher(e) parent / tuteur,\n\nNous avons l'honneur de vous convoquer à une réunion concernant la situation scolaire de votre enfant.\n\nNous vous prions de bien vouloir vous présenter à l'administration à votre plus proche convenance afin de traiter cette affaire en toute confidentialité.\n\nVotre présence est indispensable. Pour convenir d'un rendez-vous ou pour toute information complémentaire, veuillez contacter l'administration directement.\n\nDans l'attente de vous recevoir, nous vous prions d'agréer, cher(e) parent, l'expression de nos salutations distinguées.\n\nL'Administration",
   },
   {
     label: 'Information générale',
     type: 'custom' as MessageType,
-    subject: 'Information - Formel',
-    body: "Cher parent,\n\nNous souhaitons vous informer d'une mise à jour importante concernant l'établissement.\n\nCordialement,\nL'administration",
+    subject: 'Information importante – Formel',
+    body: "Cher(e) parent / tuteur,\n\nNous vous contactons afin de vous faire part d'une information importante concernant notre établissement.\n\nNous vous remercions de l'attention que vous porterez à ce message et restons à votre entière disposition pour tout renseignement complémentaire.\n\nVeuillez agréer, cher(e) parent, l'expression de nos salutations distinguées.\n\nL'Administration",
   },
   {
     label: 'Personnalisé',
@@ -87,7 +87,9 @@ export default function BulkMessageDialog({
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
-  const [result, setResult] = useState<{ sent: number; skipped: number; errors: { studentId: string; studentName: string; reason: string }[] } | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+
+  const jobStatus = useBulkJobStatus(jobId);
 
   const previewEnabled = open && (step === 'compose' || step === 'students');
 
@@ -113,7 +115,7 @@ export default function BulkMessageDialog({
       setSubject('');
       setBody('');
       setExcludedIds(new Set());
-      setResult(null);
+      setJobId(null);
     }
     onOpenChange(nextOpen);
   }
@@ -150,7 +152,7 @@ export default function BulkMessageDialog({
         sendToAllContacts,
         excludedStudentIds: Array.from(excludedIds),
       });
-      setResult(res);
+      setJobId(res.jobId);
       setStep('result');
     } catch {
       // error shown inline
@@ -514,45 +516,63 @@ export default function BulkMessageDialog({
         )}
 
         {/* STEP: RESULT */}
-        {step === 'result' && result && (
+        {step === 'result' && (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-green-600" /> Messages envoyés
+                {jobStatus.data?.status === 'done'
+                  ? <><Mail className="h-4 w-4 text-green-600" /> Messages envoyés</>
+                  : <><Loader2 className="h-4 w-4 animate-spin" /> Envoi en cours…</>}
               </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-3 py-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-4 text-center">
-                  <p className="text-2xl font-bold text-green-700 dark:text-green-400">{result.sent}</p>
-                  <p className="text-xs text-green-600 dark:text-green-500 mt-1">Envoyés</p>
+              {(!jobStatus.data || jobStatus.data.status === 'pending' || jobStatus.data.status === 'running') ? (
+                <div className="flex flex-col items-center gap-3 py-6 text-sm text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <span>Envoi des messages en cours, veuillez patienter…</span>
                 </div>
-                <div className="rounded-md bg-muted/50 border p-4 text-center">
-                  <p className="text-2xl font-bold">{result.skipped}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Ignorés (sans email)</p>
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-4 text-center">
+                      <p className="text-2xl font-bold text-green-700 dark:text-green-400">{jobStatus.data.sent}</p>
+                      <p className="text-xs text-green-600 dark:text-green-500 mt-1">Envoyés</p>
+                    </div>
+                    <div className="rounded-md bg-muted/50 border p-4 text-center">
+                      <p className="text-2xl font-bold">{jobStatus.data.failed}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Échecs</p>
+                    </div>
+                  </div>
 
-              {result.errors.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-sm text-destructive">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    {result.errors.length} échec{result.errors.length > 1 ? 's' : ''}
-                  </div>
-                  <div className="max-h-32 overflow-y-auto rounded-md border p-2 space-y-1">
-                    {result.errors.map((e, i) => (
-                      <div key={i} className="text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">{e.studentName}</span> — {e.reason}
+                  {jobStatus.data.errors.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-sm text-destructive">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        {jobStatus.data.errors.length} échec{jobStatus.data.errors.length > 1 ? 's' : ''}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div className="max-h-32 overflow-y-auto rounded-md border p-2 space-y-1">
+                        {jobStatus.data.errors.map((e, i) => (
+                          <div key={i} className="text-xs text-muted-foreground">
+                            {e.studentName && <span className="font-medium text-foreground">{e.studentName}</span>}
+                            {e.studentName && ' — '}
+                            {e.reason}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
             <DialogFooter>
-              <Button onClick={() => handleOpenChange(false)}>Fermer</Button>
+              <Button
+                onClick={() => handleOpenChange(false)}
+                disabled={!jobStatus.data || jobStatus.data.status === 'pending' || jobStatus.data.status === 'running'}
+              >
+                Fermer
+              </Button>
             </DialogFooter>
           </>
         )}
