@@ -146,7 +146,7 @@ export default function DashboardPage() {
                         color: 'hsl(var(--popover-foreground))',
                         fontSize: '12px',
                       }}
-                      formatter={(value: number) => [formatAmount(value)]}
+                      formatter={(value: any) => [formatAmount(value)]}
                       labelStyle={{ fontWeight: 600, marginBottom: 4 }}
                     />
                     <Area
@@ -211,7 +211,7 @@ export default function DashboardPage() {
                         color: 'hsl(var(--popover-foreground))',
                         fontSize: '12px',
                       }}
-                      formatter={(value: number) => [formatAmount(value)]}
+                      formatter={(value: any) => [formatAmount(value)]}
                     />
                     <Legend
                       iconType="circle"

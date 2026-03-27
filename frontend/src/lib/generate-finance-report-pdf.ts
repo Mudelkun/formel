@@ -241,7 +241,6 @@ export function generateAnnualReportPdf(
   schoolYear: string,
 ) {
   const doc = new jsPDF();
-  const pw = doc.internal.pageSize.getWidth();
   const currency = settings?.currency || 'HTG';
   const schoolName = settings?.schoolName || 'Formel';
 
@@ -283,19 +282,19 @@ export function generateAnnualReportPdf(
     styles: {
       fontSize: 7.5,
       cellPadding: { top: 4, bottom: 4, left: 4, right: 4 },
-      textColor: C.textDark as unknown as number[],
+      textColor: C.textDark as unknown as [number, number, number],
       lineWidth: 0,
       overflow: 'ellipsize',
     },
     headStyles: {
-      fillColor: C.primary as unknown as number[],
-      textColor: C.white as unknown as number[],
+      fillColor: C.primary as unknown as [number, number, number],
+      textColor: C.white as unknown as [number, number, number],
       fontStyle: 'bold',
       fontSize: 7,
       cellPadding: { top: 5, bottom: 5, left: 4, right: 4 },
     },
     alternateRowStyles: {
-      fillColor: C.bgLight as unknown as number[],
+      fillColor: C.bgLight as unknown as [number, number, number],
     },
     margin: { left: ML, right: MR },
     showHead: 'everyPage',
@@ -369,18 +368,18 @@ export function generateAnnualReportPdf(
       styles: {
         fontSize: 7,
         cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 },
-        textColor: C.textDark as unknown as number[],
+        textColor: C.textDark as unknown as [number, number, number],
         lineWidth: 0,
       },
       headStyles: {
-        fillColor: C.bgCard as unknown as number[],
-        textColor: C.primary as unknown as number[],
+        fillColor: C.bgCard as unknown as [number, number, number],
+        textColor: C.primary as unknown as [number, number, number],
         fontStyle: 'bold',
         fontSize: 6.5,
         cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
       },
       alternateRowStyles: {
-        fillColor: C.bgLight as unknown as number[],
+        fillColor: C.bgLight as unknown as [number, number, number],
       },
       margin: { left: ML, right: MR },
       showHead: 'everyPage',
@@ -440,18 +439,18 @@ export function generateAnnualReportPdf(
       styles: {
         fontSize: 7.5,
         cellPadding: { top: 4, bottom: 4, left: 4, right: 4 },
-        textColor: C.textDark as unknown as number[],
+        textColor: C.textDark as unknown as [number, number, number],
         lineWidth: 0,
       },
       headStyles: {
-        fillColor: C.primary as unknown as number[],
-        textColor: C.white as unknown as number[],
+        fillColor: C.primary as unknown as [number, number, number],
+        textColor: C.white as unknown as [number, number, number],
         fontStyle: 'bold',
         fontSize: 7,
         cellPadding: { top: 5, bottom: 5, left: 4, right: 4 },
       },
       alternateRowStyles: {
-        fillColor: C.bgLight as unknown as number[],
+        fillColor: C.bgLight as unknown as [number, number, number],
       },
       margin: { left: ML, right: MR },
       showHead: 'everyPage',
@@ -545,18 +544,18 @@ export function generateMonthlyReportPdf(
       styles: {
         fontSize: 7.5,
         cellPadding: { top: 4, bottom: 4, left: 4, right: 4 },
-        textColor: C.textDark as unknown as number[],
+        textColor: C.textDark as unknown as [number, number, number],
         lineWidth: 0,
       },
       headStyles: {
-        fillColor: C.primary as unknown as number[],
-        textColor: C.white as unknown as number[],
+        fillColor: C.primary as unknown as [number, number, number],
+        textColor: C.white as unknown as [number, number, number],
         fontStyle: 'bold',
         fontSize: 7,
         cellPadding: { top: 5, bottom: 5, left: 4, right: 4 },
       },
       alternateRowStyles: {
-        fillColor: C.bgLight as unknown as number[],
+        fillColor: C.bgLight as unknown as [number, number, number],
       },
       margin: { left: ML, right: MR },
       didParseCell(cellData) {

@@ -304,19 +304,19 @@ export function generatePaymentHistoryPdf(
     styles: {
       fontSize: 7.5,
       cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
-      textColor: C.textDark as unknown as number[],
+      textColor: C.textDark as unknown as [number, number, number],
       lineWidth: 0,
       overflow: 'ellipsize',
     },
     headStyles: {
-      fillColor: C.primary as unknown as number[],
-      textColor: C.white as unknown as number[],
+      fillColor: C.primary as unknown as [number, number, number],
+      textColor: C.white as unknown as [number, number, number],
       fontStyle: 'bold',
       fontSize: 7,
       cellPadding: { top: 5, bottom: 5, left: 3, right: 3 },
     },
     alternateRowStyles: {
-      fillColor: C.bgLight as unknown as number[],
+      fillColor: C.bgLight as unknown as [number, number, number],
     },
     columnStyles: {
       0: { cellWidth: 27 },

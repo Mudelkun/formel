@@ -40,7 +40,7 @@ export function useMonthlyPayments() {
 export function useGroupBreakdown() {
   return useQuery({
     queryKey: ['finance', 'group-breakdown'],
-    queryFn: getGroupBreakdown,
+    queryFn: () => getGroupBreakdown(),
     staleTime: STALE_1M,
   });
 }

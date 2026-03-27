@@ -369,7 +369,7 @@ export default function FinancePage() {
                       color: 'hsl(var(--popover-foreground))',
                       fontSize: '12px',
                     }}
-                    formatter={(value: number) => [formatAmount(value)]}
+                    formatter={(value: any) => [formatAmount(value)]}
                     labelStyle={{ fontWeight: 600, marginBottom: 4 }}
                   />
                   <Legend
@@ -422,7 +422,7 @@ export default function FinancePage() {
                       color: 'hsl(var(--popover-foreground))',
                       fontSize: '12px',
                     }}
-                    formatter={(value: number) => [formatAmount(value)]}
+                    formatter={(value: any) => [formatAmount(value)]}
                     labelStyle={{ fontWeight: 600, marginBottom: 4 }}
                   />
                   <Legend

@@ -80,7 +80,7 @@ export default function ScholarshipForm({ value, onChange, versements }: Props) 
 
       {/* ── Annulation de versements ───────────────── */}
       <fieldset className="space-y-2">
-        <Label asChild><legend>Annulation de versements</legend></Label>
+        <legend className="text-sm font-medium leading-none">Annulation de versements</legend>
 
         <label className="flex items-center gap-2 cursor-pointer">
           <input

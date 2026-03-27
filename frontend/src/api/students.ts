@@ -104,7 +104,7 @@ export async function deleteContact(studentId: string, contactId: string): Promi
 
 // ── Promote / Downgrade ──────────────────────────────────
 
-export async function promoteStudent(studentId: string): Promise<{ className: string; gradeLevel: number }> {
+export async function promoteStudent(studentId: string): Promise<{ className: string; gradeLevel: number; graduated?: boolean }> {
   const { data } = await api.post(`/students/${studentId}/promote`);
   return data;
 }

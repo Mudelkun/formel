@@ -2,7 +2,6 @@ import { useRef, useState } from 'react';
 import { useAuth } from '@/context/auth';
 import { useUploadPhoto, useUpdateStudent } from '@/hooks/use-students';
 import { toast } from 'sonner';
-import StudentStatusBadge from './StudentStatusBadge';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Camera } from 'lucide-react';
@@ -43,11 +42,6 @@ export default function StudentPhotoCard({ student }: Props) {
 
     uploadPhoto.mutate(file);
     e.target.value = '';
-  }
-
-  function handleStatusChange(newStatus: string) {
-    if (newStatus === student.status) return;
-    setStatusConfirm(newStatus);
   }
 
   function confirmStatusChange() {

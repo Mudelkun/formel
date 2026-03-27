@@ -20,7 +20,7 @@ import {
 } from '@/api/students';
 import { listClasses, createClass, updateClass } from '@/api/classes';
 import { listSchoolYears, createSchoolYear, activateSchoolYear, promoteStudents } from '@/api/school-years';
-import { createEnrollment, updateEnrollmentStatus, createScholarship, listScholarships, updateScholarship, deleteScholarship, listPayments, type CreateScholarshipInput, type Scholarship, type Payment, type EnrollmentStatus } from '@/api/enrollments';
+import { createEnrollment, updateEnrollmentStatus, createScholarship, listScholarships, updateScholarship, deleteScholarship, listPayments, type CreateScholarshipInput, type EnrollmentStatus } from '@/api/enrollments';
 import type {
   CreateStudentInput,
   UpdateStudentInput,

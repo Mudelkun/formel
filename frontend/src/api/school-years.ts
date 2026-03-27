@@ -21,7 +21,7 @@ export async function activateSchoolYear(id: string): Promise<SchoolYear> {
   return data;
 }
 
-export async function promoteStudents(id: string): Promise<{ promoted: number; skipped: number; sourceYear: string; targetYear: string }> {
+export async function promoteStudents(id: string): Promise<{ promoted: number; skipped: number; graduated: number; sourceYear: string; targetYear: string }> {
   const { data } = await api.post(`/school-years/${id}/promote`);
   return data;
 }

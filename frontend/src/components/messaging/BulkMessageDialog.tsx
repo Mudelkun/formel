@@ -235,7 +235,7 @@ export default function BulkMessageDialog({
                 </div>
 
                 {recipientType === 'class_group' && (
-                  <Select value={classGroupId} onValueChange={setClassGroupId}>
+                  <Select value={classGroupId} onValueChange={(v) => setClassGroupId(v ?? '')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choisir un groupe" />
                     </SelectTrigger>
