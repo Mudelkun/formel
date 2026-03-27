@@ -22,10 +22,6 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-function getRefreshSecret() {
-  return env.JWT_REFRESH_SECRET || env.JWT_SECRET;
-}
-
 function sanitizeUser(user) {
   const { passwordHash, ...safe } = user;
   return safe;

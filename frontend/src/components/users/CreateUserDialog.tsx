@@ -18,7 +18,10 @@ import { Loader2 } from 'lucide-react';
 const createUserSchema = z.object({
   name: z.string().min(1, 'Nom requis').max(100),
   email: z.string().email('Email invalide'),
-  password: z.string().min(6, 'Minimum 6 caractères'),
+  password: z.string()
+    .min(8, 'Minimum 8 caractères')
+    .regex(/[A-Z]/, 'Doit contenir une majuscule')
+    .regex(/[0-9]/, 'Doit contenir un chiffre'),
   role: z.enum(['secretary', 'teacher', 'accountant'], { error: 'Rôle requis' }),
 });
 

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Upload, Trash2, Check, Clock, X, ChevronLeft, ChevronRight, ZoomIn, ExternalLink } from 'lucide-react';
+import { useFileUrl } from '@/hooks/use-file-url';
 
 const methodLabels: Record<string, string> = {
   cash: 'Espèces',
@@ -58,6 +59,10 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
   const documents = docsData?.data ?? [];
   const [activeDocIndex, setActiveDocIndex] = useState(0);
 
+  const safeIdx = Math.min(activeDocIndex, Math.max(0, documents.length - 1));
+  const activeDoc = documents[safeIdx];
+  const activeDocBlobUrl = useFileUrl(activeDoc?.documentUrl);
+
   function handleStatusChange(status: string) {
     updatePayment.mutate({ id: paymentId, status });
   }
@@ -76,8 +81,6 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
     }
   }
 
-  const safeIndex = Math.min(activeDocIndex, Math.max(0, documents.length - 1));
-  const activeDoc = documents[safeIndex];
 
   if (!open) return null;
 
@@ -229,22 +232,28 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
                   {/* Inline preview */}
                   {activeDoc && (
                     <div className="relative rounded-lg border overflow-hidden bg-muted/30">
-                      {isImageUrl(activeDoc.documentUrl) ? (
-                        <img
-                          src={activeDoc.documentUrl}
-                          alt="Justificatif de paiement"
-                          className="w-full max-h-96 object-contain"
-                        />
-                      ) : isPdfUrl(activeDoc.documentUrl) ? (
-                        <iframe
-                          src={activeDoc.documentUrl}
-                          title="Justificatif de paiement"
-                          className="w-full h-96 border-0"
-                        />
+                      {activeDocBlobUrl ? (
+                        isImageUrl(activeDoc.documentUrl) ? (
+                          <img
+                            src={activeDocBlobUrl}
+                            alt="Justificatif de paiement"
+                            className="w-full max-h-96 object-contain"
+                          />
+                        ) : isPdfUrl(activeDoc.documentUrl) ? (
+                          <iframe
+                            src={activeDocBlobUrl}
+                            title="Justificatif de paiement"
+                            className="w-full h-96 border-0"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                            <ZoomIn className="h-8 w-8 mb-2" />
+                            <p className="text-sm">Aperçu non disponible</p>
+                          </div>
+                        )
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                          <ZoomIn className="h-8 w-8 mb-2" />
-                          <p className="text-sm">Aperçu non disponible</p>
+                        <div className="flex items-center justify-center py-12">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
                       )}
 
@@ -257,20 +266,20 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0"
-                                disabled={safeIndex === 0}
-                                onClick={() => setActiveDocIndex(safeIndex - 1)}
+                                disabled={safeIdx === 0}
+                                onClick={() => setActiveDocIndex(safeIdx - 1)}
                               >
                                 <ChevronLeft className="h-4 w-4" />
                               </Button>
                               <span className="text-xs text-muted-foreground px-1">
-                                {safeIndex + 1} / {documents.length}
+                                {safeIdx + 1} / {documents.length}
                               </span>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0"
-                                disabled={safeIndex === documents.length - 1}
-                                onClick={() => setActiveDocIndex(safeIndex + 1)}
+                                disabled={safeIdx === documents.length - 1}
+                                onClick={() => setActiveDocIndex(safeIdx + 1)}
                               >
                                 <ChevronRight className="h-4 w-4" />
                               </Button>
@@ -282,7 +291,10 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
                             variant="ghost"
                             size="sm"
                             className="h-7 gap-1 text-xs"
-                            render={<a href={activeDoc.documentUrl} target="_blank" rel="noopener noreferrer" />}
+                            onClick={() => {
+                              if (activeDocBlobUrl) window.open(activeDocBlobUrl, '_blank');
+                            }}
+                            disabled={!activeDocBlobUrl}
                           >
                             <ExternalLink className="h-3 w-3" />
                             Ouvrir
@@ -295,7 +307,7 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
                               onClick={() => {
                                 if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) return;
                                 deleteDoc.mutate(activeDoc.id);
-                                if (safeIndex > 0) setActiveDocIndex(safeIndex - 1);
+                                if (safeIdx > 0) setActiveDocIndex(safeIdx - 1);
                               }}
                               disabled={deleteDoc.isPending}
                             >

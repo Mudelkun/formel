@@ -26,11 +26,17 @@ async function listDocuments(studentId) {
     .orderBy(studentDocuments.createdAt);
 }
 
+const ALLOWED_DOC_MIMES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+
 async function uploadDocument(studentId, file, documentType) {
   await verifyStudentExists(studentId);
 
   if (!file) {
     throw new AppError(400, 'No file provided');
+  }
+
+  if (!ALLOWED_DOC_MIMES.includes(file.mimetype)) {
+    throw new AppError(400, 'Type de fichier non autorisé. Accepté : PDF, JPEG, PNG, WebP');
   }
 
   const key = `students/${studentId}/documents/${Date.now()}-${file.originalname}`;

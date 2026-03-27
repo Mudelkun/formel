@@ -1,10 +1,16 @@
 const { z } = require('zod');
 
+const passwordSchema = z.string()
+  .min(8, 'Le mot de passe doit contenir au moins 8 caractères')
+  .max(100)
+  .regex(/[A-Z]/, 'Doit contenir au moins une lettre majuscule')
+  .regex(/[0-9]/, 'Doit contenir au moins un chiffre');
+
 const createUserSchema = z.object({
   body: z.object({
     name: z.string().min(1).max(100),
     email: z.string().email(),
-    password: z.string().min(6).max(100),
+    password: passwordSchema,
     role: z.enum(['secretary', 'teacher', 'accountant']),
   }),
 });
@@ -13,7 +19,7 @@ const updateUserSchema = z.object({
   body: z.object({
     name: z.string().min(1).max(100).optional(),
     email: z.string().email().optional(),
-    password: z.string().min(6).max(100).optional(),
+    password: passwordSchema.optional(),
     role: z.enum(['secretary', 'teacher', 'accountant']).optional(),
   }),
   params: z.object({ id: z.string().uuid() }),

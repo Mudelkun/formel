@@ -1,4 +1,4 @@
-const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { r2 } = require('../config/r2');
 const { env } = require('../config/env');
 
@@ -9,7 +9,20 @@ async function uploadFile(buffer, key, contentType) {
     Body: buffer,
     ContentType: contentType,
   }));
-  return `${env.R2_PUBLIC_URL}/${key}`;
+  // Return just the key — files are served through the /api/files proxy
+  return key;
+}
+
+async function streamFile(key) {
+  const response = await r2.send(new GetObjectCommand({
+    Bucket: env.R2_BUCKET_NAME,
+    Key: key,
+  }));
+  return {
+    body: response.Body,
+    contentType: response.ContentType,
+    contentLength: response.ContentLength,
+  };
 }
 
 async function deleteFile(key) {
@@ -20,7 +33,11 @@ async function deleteFile(key) {
 }
 
 function extractKeyFromUrl(url) {
-  return url.replace(`${env.R2_PUBLIC_URL}/`, '');
+  // Handle both old full URLs and new key-only format
+  if (env.R2_PUBLIC_URL && url.startsWith(env.R2_PUBLIC_URL)) {
+    return url.replace(`${env.R2_PUBLIC_URL}/`, '');
+  }
+  return url;
 }
 
-module.exports = { uploadFile, deleteFile, extractKeyFromUrl };
+module.exports = { uploadFile, streamFile, deleteFile, extractKeyFromUrl };

@@ -7,6 +7,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Camera } from 'lucide-react';
 import type { StudentDetail } from '@/types/student';
+import AuthImage from '@/components/AuthImage';
 
 interface Props {
   student: StudentDetail;
@@ -64,17 +65,16 @@ export default function StudentPhotoCard({ student }: Props) {
         <CardContent className="p-5 flex flex-col items-center text-center">
           {/* Avatar / Photo */}
           <div className="relative mb-3">
-            {student.profilePhotoUrl ? (
-              <img
-                src={student.profilePhotoUrl}
-                alt={`${student.firstName} ${student.lastName}`}
-                className="h-24 w-24 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted text-2xl font-semibold">
-                {initials}
-              </div>
-            )}
+            <AuthImage
+              storedUrl={student.profilePhotoUrl}
+              alt={`${student.firstName} ${student.lastName}`}
+              className="h-24 w-24 rounded-full object-cover"
+              fallback={
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted text-2xl font-semibold">
+                  {initials}
+                </div>
+              }
+            />
             {canEdit && (
               <button
                 type="button"

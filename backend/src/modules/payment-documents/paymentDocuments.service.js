@@ -27,11 +27,17 @@ async function listDocuments(paymentId) {
     .orderBy(paymentDocuments.createdAt);
 }
 
+const ALLOWED_DOC_MIMES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+
 async function uploadDocument(paymentId, file, userId) {
   await verifyPaymentExists(paymentId);
 
   if (!file) {
     throw new AppError(400, 'No file provided');
+  }
+
+  if (!ALLOWED_DOC_MIMES.includes(file.mimetype)) {
+    throw new AppError(400, 'Type de fichier non autorisé. Accepté : PDF, JPEG, PNG, WebP');
   }
 
   const key = `payments/${paymentId}/documents/${Date.now()}-${file.originalname}`;

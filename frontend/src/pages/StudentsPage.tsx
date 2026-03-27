@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Plus, Search, GraduationCap, Award, RefreshCw, AlertTriangle } from 'lucide-react';
+import AuthImage from '@/components/AuthImage';
 
 const PAGE_SIZE = 20;
 
@@ -216,17 +217,16 @@ export default function StudentsPage() {
                     >
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          {student.profilePhotoUrl ? (
-                            <img
-                              src={student.profilePhotoUrl}
-                              alt=""
-                              className="h-8 w-8 rounded-full object-cover shrink-0"
-                            />
-                          ) : (
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold uppercase">
-                              {student.lastName.charAt(0)}{student.firstName.charAt(0)}
-                            </div>
-                          )}
+                          <AuthImage
+                            storedUrl={student.profilePhotoUrl}
+                            alt=""
+                            className="h-8 w-8 rounded-full object-cover shrink-0"
+                            fallback={
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold uppercase">
+                                {student.lastName.charAt(0)}{student.firstName.charAt(0)}
+                              </div>
+                            }
+                          />
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">
                               {student.lastName} {student.firstName}

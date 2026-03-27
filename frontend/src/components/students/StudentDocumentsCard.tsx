@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, FileText, Trash2, ExternalLink } from 'lucide-react';
 import type { StudentDocument } from '@/types/student';
+import { fetchFileAsBlob } from '@/lib/fileUrl';
 
 interface Props {
   studentId: string;
@@ -72,7 +73,7 @@ export default function StudentDocumentsCard({ studentId }: Props) {
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      onClick={() => window.open(doc.documentUrl, '_blank')}
+                      onClick={() => fetchFileAsBlob(doc.documentUrl).then((url) => window.open(url, '_blank'))}
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Button>
