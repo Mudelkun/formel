@@ -6,7 +6,7 @@
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
     "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
-    "start": "npm start --prefix backend"
+    "start": "npm run db:push --prefix backend && npm run db:seed --prefix backend && npm start --prefix backend"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
