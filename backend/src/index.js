@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const { env } = require('./config/env');
 const { errorHandler } = require('./middleware/errorHandler');
 const authRouter = require('./modules/auth/auth.routes');
@@ -53,6 +54,10 @@ const apiLimiter = rateLimit({
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/', apiLimiter);
 
+// --- Serve frontend static files ---
+const frontendPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendPath));
+
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/students', studentsRouter);
@@ -70,6 +75,11 @@ app.use('/api/messages', messagingRouter);
 app.use('/api/files', filesRouter);
 
 app.use(errorHandler);
+
+// --- SPA fallback: serve index.html for all non-API routes ---
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
+});
 
 app.listen(env.PORT, () => {
   console.log(`Server running on port ${env.PORT}`);
