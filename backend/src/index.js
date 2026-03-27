@@ -77,7 +77,7 @@ app.use('/api/files', filesRouter);
 app.use(errorHandler);
 
 // --- SPA fallback: serve index.html for all non-API routes ---
-app.get('*', (req, res) => {
+app.get('{*path}', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
