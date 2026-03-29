@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useBulkPreview, useSendBulkMessages, useBulkJobStatus } from '@/hooks/use-messaging';
 import { useCurrency } from '@/hooks/use-currency';
+import { useSettings } from '@/hooks/use-settings';
 import type { RecipientType, MessageType, BulkPreviewStudent } from '@/api/messaging';
 import {
   Dialog,
@@ -22,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Mail, AlertTriangle, CheckSquare, Square, Users } from 'lucide-react';
+import { Loader2, Mail, AlertTriangle, CheckSquare, Square, Users, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ClassGroup {
@@ -39,32 +40,34 @@ interface Props {
 
 type Step = 'compose' | 'students' | 'confirm' | 'result';
 
-const MESSAGE_TEMPLATES = [
-  {
-    label: 'Rappel de paiement',
-    type: 'payment_reminder' as MessageType,
-    subject: '',
-    body: '',
-  },
-  {
-    label: 'Convocation',
-    type: 'custom' as MessageType,
-    subject: 'Convocation – Formel',
-    body: "Cher(e) parent / tuteur,\n\nNous avons l'honneur de vous convoquer à une réunion concernant la situation scolaire de votre enfant.\n\nNous vous prions de bien vouloir vous présenter à l'administration à votre plus proche convenance afin de traiter cette affaire en toute confidentialité.\n\nVotre présence est indispensable. Pour convenir d'un rendez-vous ou pour toute information complémentaire, veuillez contacter l'administration directement.\n\nDans l'attente de vous recevoir, nous vous prions d'agréer, cher(e) parent, l'expression de nos salutations distinguées.\n\nL'Administration",
-  },
-  {
-    label: 'Information générale',
-    type: 'custom' as MessageType,
-    subject: 'Information importante – Formel',
-    body: "Cher(e) parent / tuteur,\n\nNous vous contactons afin de vous faire part d'une information importante concernant notre établissement.\n\nNous vous remercions de l'attention que vous porterez à ce message et restons à votre entière disposition pour tout renseignement complémentaire.\n\nVeuillez agréer, cher(e) parent, l'expression de nos salutations distinguées.\n\nL'Administration",
-  },
-  {
-    label: 'Personnalisé',
-    type: 'custom' as MessageType,
-    subject: '',
-    body: '',
-  },
-];
+function getMessageTemplates(schoolName: string) {
+  return [
+    {
+      label: 'Rappel de paiement',
+      type: 'payment_reminder' as MessageType,
+      subject: '',
+      body: '',
+    },
+    {
+      label: 'Convocation',
+      type: 'custom' as MessageType,
+      subject: `Convocation – ${schoolName}`,
+      body: "Cher(e) parent / tuteur,\n\nNous avons l'honneur de vous convoquer à une réunion concernant la situation scolaire de votre enfant.\n\nNous vous prions de bien vouloir vous présenter à l'administration à votre plus proche convenance afin de traiter cette affaire en toute confidentialité.\n\nVotre présence est indispensable. Pour convenir d'un rendez-vous ou pour toute information complémentaire, veuillez contacter l'administration directement.\n\nDans l'attente de vous recevoir, nous vous prions d'agréer, cher(e) parent, l'expression de nos salutations distinguées.\n\nL'Administration",
+    },
+    {
+      label: 'Information générale',
+      type: 'custom' as MessageType,
+      subject: `Information importante – ${schoolName}`,
+      body: "Cher(e) parent / tuteur,\n\nNous vous contactons afin de vous faire part d'une information importante concernant notre établissement.\n\nNous vous remercions de l'attention que vous porterez à ce message et restons à votre entière disposition pour tout renseignement complémentaire.\n\nVeuillez agréer, cher(e) parent, l'expression de nos salutations distinguées.\n\nL'Administration",
+    },
+    {
+      label: 'Personnalisé',
+      type: 'custom' as MessageType,
+      subject: '',
+      body: '',
+    },
+  ];
+}
 
 function today() {
   return new Date().toISOString().split('T')[0];
@@ -77,6 +80,8 @@ export default function BulkMessageDialog({
   defaultRecipientType = 'all',
 }: Props) {
   const { formatAmount } = useCurrency();
+  const { data: settings } = useSettings();
+  const schoolName = settings?.schoolName || 'Formel';
 
   const [step, setStep] = useState<Step>('compose');
   const [recipientType, setRecipientType] = useState<RecipientType>(defaultRecipientType);
@@ -87,6 +92,7 @@ export default function BulkMessageDialog({
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
+  const [studentSearch, setStudentSearch] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
 
   const jobStatus = useBulkJobStatus(jobId);
@@ -115,6 +121,7 @@ export default function BulkMessageDialog({
       setSubject('');
       setBody('');
       setExcludedIds(new Set());
+      setStudentSearch('');
       setJobId(null);
     }
     onOpenChange(nextOpen);
@@ -125,7 +132,9 @@ export default function BulkMessageDialog({
     setExcludedIds(new Set());
   }, [recipientType, classGroupId, dueDateBefore, sendToAllContacts]);
 
-  function applyTemplate(tpl: typeof MESSAGE_TEMPLATES[number]) {
+  const messageTemplates = getMessageTemplates(schoolName);
+
+  function applyTemplate(tpl: ReturnType<typeof getMessageTemplates>[number]) {
     setMessageType(tpl.type);
     setSubject(tpl.subject);
     setBody(tpl.body);
@@ -133,6 +142,13 @@ export default function BulkMessageDialog({
 
   const studentsWithContacts = preview.data?.students.filter((s) => s.hasContacts) ?? [];
   const selectedCount = studentsWithContacts.filter((s) => !excludedIds.has(s.id)).length;
+
+  const filteredStudents = studentSearch.trim()
+    ? studentsWithContacts.filter((s) => {
+        const q = studentSearch.toLowerCase();
+        return s.name.toLowerCase().includes(q) || s.contactEmails.some((e) => e.toLowerCase().includes(q));
+      })
+    : studentsWithContacts;
   const isMessageValid =
     messageType === 'payment_reminder' || (subject.trim().length > 0 && body.trim().length > 0);
 
@@ -306,7 +322,7 @@ export default function BulkMessageDialog({
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Message</Label>
                 <div className="flex flex-wrap gap-1.5">
-                  {MESSAGE_TEMPLATES.map((tpl) => (
+                  {messageTemplates.map((tpl) => (
                     <Button
                       key={tpl.label}
                       type="button"
@@ -386,6 +402,17 @@ export default function BulkMessageDialog({
               </DialogDescription>
             </DialogHeader>
 
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un élève ou email…"
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                className="pl-8 h-8 text-sm"
+              />
+            </div>
+
             <div className="flex items-center justify-between text-xs text-muted-foreground py-1">
               <span>
                 <span className="font-medium text-foreground">{selectedCount}</span> / {studentsWithContacts.length} sélectionnés
@@ -409,12 +436,12 @@ export default function BulkMessageDialog({
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-1 min-h-0 max-h-64 border rounded-md p-1">
-              {studentsWithContacts.length === 0 ? (
+              {filteredStudents.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  Aucun étudiant avec contact disponible.
+                  {studentSearch.trim() ? 'Aucun résultat.' : 'Aucun étudiant avec contact disponible.'}
                 </p>
               ) : (
-                studentsWithContacts.map((s: BulkPreviewStudent) => {
+                filteredStudents.map((s: BulkPreviewStudent) => {
                   const checked = !excludedIds.has(s.id);
                   return (
                     <button

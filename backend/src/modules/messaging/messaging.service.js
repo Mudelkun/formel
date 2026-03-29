@@ -7,9 +7,11 @@ const { enrollments } = require('../../db/schema/enrollments');
 const { classes } = require('../../db/schema/classes');
 const { schoolYears } = require('../../db/schema/schoolYears');
 const { env } = require('../../config/env');
+const { desc } = require('drizzle-orm');
 const { AppError } = require('../../lib/apiError');
 const { getBalance, getBulkBalances } = require('../balance/balance.service');
 const { schoolSettings } = require('../../db/schema/schoolSettings');
+const { messageLogs } = require('../../db/schema/messageLogs');
 
 async function fetchSchoolSettings() {
   const [s] = await db.select().from(schoolSettings).limit(1);
@@ -43,7 +45,7 @@ async function runWithConcurrency(tasks, limit = 20) {
   }
 }
 
-async function sendEmail({ contactId, subject, body }) {
+async function sendEmail({ contactId, subject, body }, userId) {
   // Look up contact
   const [contact] = await db
     .select()
@@ -76,7 +78,27 @@ async function sendEmail({ contactId, subject, body }) {
 
   if (error) {
     console.error('Resend error:', error);
+    // Log failed send
+    if (userId) {
+      await db.insert(messageLogs).values({
+        type: 'individual', messageType: 'custom', subject, body,
+        recipientSummary: `${contact.firstName} ${contact.lastName} — ${contact.email}`,
+        totalRecipients: 1, sent: 0, failed: 1, status: 'error',
+        errors: JSON.stringify([{ email: contact.email, reason: error.message }]),
+        sentById: userId, finishedAt: new Date(),
+      }).catch((e) => console.error('Failed to insert message log:', e));
+    }
     throw new AppError(500, `Failed to send email: ${error.message}`);
+  }
+
+  // Log successful send
+  if (userId) {
+    await db.insert(messageLogs).values({
+      type: 'individual', messageType: 'custom', subject, body,
+      recipientSummary: `${contact.firstName} ${contact.lastName} — ${contact.email}`,
+      totalRecipients: 1, sent: 1, failed: 0, status: 'done',
+      errors: '[]', sentById: userId, finishedAt: new Date(),
+    }).catch((e) => console.error('Failed to insert message log:', e));
   }
 
   return { success: true, to: contact.email };
@@ -360,7 +382,7 @@ function buildCustomEmailHtml(subject, body, school = {}) {
  * Kick off a bulk send in the background and return a jobId immediately.
  * The caller gets { jobId } with HTTP 202; poll GET /messages/bulk-status/:jobId for progress.
  */
-function sendBulkMessages({ recipients, message, sendToAllContacts = false, excludedStudentIds = [] }) {
+function sendBulkMessages({ recipients, message, sendToAllContacts = false, excludedStudentIds = [] }, userId) {
   if (!env.RESEND_API_KEY) {
     throw new AppError(500, 'Email service not configured (missing RESEND_API_KEY)');
   }
@@ -368,8 +390,18 @@ function sendBulkMessages({ recipients, message, sendToAllContacts = false, excl
   const jobId = createJob();
   const job = jobs.get(jobId);
 
+  // Build a human-readable recipient summary for the log
+  function buildRecipientSummary(type, filtered) {
+    const count = filtered.length;
+    if (type === 'all') return `Tous les élèves — ${count} élèves`;
+    if (type === 'class_group') return `Groupe de classe — ${count} élèves`;
+    if (type === 'outstanding_balance') return `Élèves avec solde impayé — ${count} élèves`;
+    return `${count} élèves`;
+  }
+
   setImmediate(async () => {
     job.status = 'running';
+    let logId = null;
     try {
       const school = await fetchSchoolSettings();
 
@@ -381,6 +413,8 @@ function sendBulkMessages({ recipients, message, sendToAllContacts = false, excl
       });
 
       const filtered = targets.filter((t) => !excludedStudentIds.includes(t.student.id));
+
+      const recipientSummary = buildRecipientSummary(recipients.type, filtered);
 
       // Build flat list of email tasks
       const emailTasks = [];
@@ -404,6 +438,26 @@ function sendBulkMessages({ recipients, message, sendToAllContacts = false, excl
 
       job.total = emailTasks.length;
 
+      // Create DB log entry
+      const logSubject = message.type === 'payment_reminder'
+        ? 'Rappel de paiement'
+        : (message.subject || 'Message groupé');
+      const [inserted] = await db.insert(messageLogs).values({
+        jobId,
+        type: 'bulk',
+        messageType: message.type,
+        subject: logSubject,
+        body: message.type === 'payment_reminder' ? null : (message.body || null),
+        recipientSummary,
+        totalRecipients: emailTasks.length,
+        sent: 0,
+        failed: 0,
+        status: 'running',
+        errors: '[]',
+        sentById: userId,
+      }).returning({ id: messageLogs.id });
+      logId = inserted.id;
+
       const { Resend } = require('resend');
       const resend = new Resend(env.RESEND_API_KEY);
 
@@ -426,10 +480,22 @@ function sendBulkMessages({ recipients, message, sendToAllContacts = false, excl
 
       job.status = 'done';
     } catch (err) {
+      console.error('Bulk send error:', err);
       job.status = 'error';
-      job.errors.push({ reason: err.message });
+      job.errors.push({ reason: "Une erreur interne est survenue lors de l'envoi." });
     } finally {
       job.finishedAt = new Date().toISOString();
+
+      // Update DB log with final results
+      if (logId) {
+        await db.update(messageLogs).set({
+          sent: job.sent,
+          failed: job.failed,
+          status: job.status,
+          errors: JSON.stringify(job.errors),
+          finishedAt: new Date(),
+        }).where(eq(messageLogs.id, logId)).catch((e) => console.error('Failed to update message log:', e));
+      }
     }
   });
 
@@ -440,7 +506,7 @@ function sendBulkMessages({ recipients, message, sendToAllContacts = false, excl
  * Send a payment reminder email for a single student.
  * Uses the same contact resolution and HTML template as bulk reminders.
  */
-async function sendStudentPaymentReminder(studentId) {
+async function sendStudentPaymentReminder(studentId, userId) {
   const balance = await getBalance(studentId);
 
   if (balance.total.amountRemaining <= 0) {
@@ -498,11 +564,44 @@ async function sendStudentPaymentReminder(studentId) {
     html,
   });
 
+  const studentName = `${student.firstName} ${student.lastName}`;
+
   if (error) {
+    if (userId) {
+      await db.insert(messageLogs).values({
+        type: 'individual', messageType: 'payment_reminder', subject,
+        recipientSummary: `${studentName} → ${contact.email}`,
+        totalRecipients: 1, sent: 0, failed: 1, status: 'error',
+        errors: JSON.stringify([{ studentName, email: contact.email, reason: error.message }]),
+        sentById: userId, finishedAt: new Date(),
+      }).catch((e) => console.error('Failed to insert message log:', e));
+    }
     throw new AppError(500, `Échec de l'envoi : ${error.message}`);
+  }
+
+  if (userId) {
+    await db.insert(messageLogs).values({
+      type: 'individual', messageType: 'payment_reminder', subject,
+      recipientSummary: `${studentName} → ${contact.email}`,
+      totalRecipients: 1, sent: 1, failed: 0, status: 'done',
+      errors: '[]', sentById: userId, finishedAt: new Date(),
+    }).catch((e) => console.error('Failed to insert message log:', e));
   }
 
   return { success: true, to: contact.email };
 }
 
-module.exports = { sendEmail, getBulkPreview, sendBulkMessages, getJobStatus, sendStudentPaymentReminder };
+async function getMessageHistory() {
+  const rows = await db
+    .select()
+    .from(messageLogs)
+    .orderBy(desc(messageLogs.sentAt))
+    .limit(50);
+
+  return rows.map((r) => ({
+    ...r,
+    errors: r.errors ? JSON.parse(r.errors) : [],
+  }));
+}
+
+module.exports = { sendEmail, getBulkPreview, sendBulkMessages, getJobStatus, sendStudentPaymentReminder, getMessageHistory };

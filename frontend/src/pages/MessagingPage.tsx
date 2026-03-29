@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useClassGroups } from '@/hooks/use-class-groups';
+import { useMessageHistory } from '@/hooks/use-messaging';
 import PageHeader from '@/components/PageHeader';
 import BulkMessageDialog from '@/components/messaging/BulkMessageDialog';
+import MessageHistory from '@/components/messaging/MessageHistory';
 import { Button } from '@/components/ui/button';
-import { Mail } from 'lucide-react';
+import { Mail, Loader2 } from 'lucide-react';
 
 export default function MessagingPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data: groupsData } = useClassGroups();
   const classGroups = groupsData?.data ?? [];
+  const { data: messages, isLoading } = useMessageHistory();
 
   return (
     <div>
@@ -22,10 +25,16 @@ export default function MessagingPage() {
         </Button>
       </PageHeader>
 
-      <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground text-sm">
-        <Mail className="h-8 w-8 mx-auto mb-3 opacity-30" />
-        <p className="font-medium">Aucun message envoyé récemment.</p>
-        <p className="mt-1">Cliquez sur "Nouveau message groupé" pour commencer.</p>
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Historique des messages</h2>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+            Chargement…
+          </div>
+        ) : (
+          <MessageHistory messages={messages ?? []} />
+        )}
       </div>
 
       <BulkMessageDialog

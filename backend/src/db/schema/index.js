@@ -14,6 +14,7 @@ const { paymentDocuments } = require('./paymentDocuments');
 const { schoolSettings } = require('./schoolSettings');
 const { auditLogs } = require('./auditLogs');
 const { refreshTokens } = require('./refreshTokens');
+const { messageLogs } = require('./messageLogs');
 
 module.exports = {
   students,
@@ -32,4 +33,5 @@ module.exports = {
   schoolSettings,
   auditLogs,
   refreshTokens,
+  messageLogs,
 };

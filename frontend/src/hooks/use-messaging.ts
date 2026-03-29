@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { sendMessage, getBulkPreview, sendBulkMessages, getBulkJobStatus, sendStudentPaymentReminder } from '@/api/messaging';
+import { sendMessage, getBulkPreview, sendBulkMessages, getBulkJobStatus, sendStudentPaymentReminder, getMessageHistory } from '@/api/messaging';
 import type { BulkPreviewParams, BulkMessageInput } from '@/api/messaging';
 
 export function useSendMessage() {
@@ -51,5 +51,12 @@ export function useSendStudentPaymentReminder() {
     onError: () => {
       toast.error("Erreur lors de l'envoi du rappel");
     },
+  });
+}
+
+export function useMessageHistory() {
+  return useQuery({
+    queryKey: ['message-history'],
+    queryFn: () => getMessageHistory(),
   });
 }

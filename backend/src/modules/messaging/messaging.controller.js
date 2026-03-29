@@ -2,7 +2,7 @@ const { asyncHandler } = require('../../lib/asyncHandler');
 const messagingService = require('./messaging.service');
 
 const sendMessage = asyncHandler(async (req, res) => {
-  const result = await messagingService.sendEmail(req.body);
+  const result = await messagingService.sendEmail(req.body, req.user.userId);
   res.json(result);
 });
 
@@ -16,7 +16,7 @@ const getBulkPreview = asyncHandler(async (req, res) => {
 });
 
 const sendBulkMessages = asyncHandler(async (req, res) => {
-  const result = messagingService.sendBulkMessages(req.body);
+  const result = messagingService.sendBulkMessages(req.body, req.user.userId);
   res.status(202).json(result);
 });
 
@@ -27,8 +27,13 @@ const getBulkJobStatus = asyncHandler(async (req, res) => {
 
 const sendStudentPaymentReminder = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
-  const result = await messagingService.sendStudentPaymentReminder(studentId);
+  const result = await messagingService.sendStudentPaymentReminder(studentId, req.user.userId);
   res.json(result);
 });
 
-module.exports = { sendMessage, getBulkPreview, sendBulkMessages, getBulkJobStatus, sendStudentPaymentReminder };
+const getMessageHistory = asyncHandler(async (req, res) => {
+  const result = await messagingService.getMessageHistory();
+  res.json(result);
+});
+
+module.exports = { sendMessage, getBulkPreview, sendBulkMessages, getBulkJobStatus, sendStudentPaymentReminder, getMessageHistory };

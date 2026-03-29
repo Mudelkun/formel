@@ -80,3 +80,26 @@ export async function sendStudentPaymentReminder(studentId: string): Promise<{ s
   const { data } = await api.post(`/messages/send-payment-reminder/${studentId}`);
   return data;
 }
+
+export interface MessageLogEntry {
+  id: string;
+  jobId: string | null;
+  type: 'bulk' | 'individual';
+  messageType: 'payment_reminder' | 'custom';
+  subject: string;
+  body: string | null;
+  recipientSummary: string | null;
+  totalRecipients: number;
+  sent: number;
+  failed: number;
+  status: 'pending' | 'running' | 'done' | 'error';
+  errors: { studentName?: string; email?: string; reason: string }[];
+  sentById: string;
+  sentAt: string;
+  finishedAt: string | null;
+}
+
+export async function getMessageHistory(): Promise<MessageLogEntry[]> {
+  const { data } = await api.get('/messages/history');
+  return data;
+}

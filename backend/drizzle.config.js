@@ -7,4 +7,6 @@ module.exports = {
   dbCredentials: {
     url: process.env.DATABASE_URL,
   },
+  extensionsFilters: ['postgis'],
+  schemaFilter: ['public'],
 };
