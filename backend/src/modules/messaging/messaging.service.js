@@ -270,7 +270,7 @@ function buildPaymentReminderHtml(student, balance, school = {}) {
     <div style="background:#ffffff;padding:32px 28px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
       <p style="margin:0 0 8px;font-size:15px;color:#111827;">Cher(e) parent&nbsp;/ tuteur de <strong>${student.firstName} ${student.lastName}</strong>,</p>
       <p style="margin:16px 0 0;font-size:14px;color:#4b5563;line-height:1.7;">
-        Nous nous permettons de vous contacter afin de vous informer qu&rsquo;un solde reste d&ucirc; pour l&rsquo;ann&eacute;e scolaire en cours.
+        Nous vous contactons afin de vous informer qu&rsquo;un montant demeure impay&eacute; pour l&rsquo;ann&eacute;e scolaire en cours.
         Nous vous prions de bien vouloir r&eacute;gulariser cette situation dans les meilleurs d&eacute;lais.
       </p>
 
