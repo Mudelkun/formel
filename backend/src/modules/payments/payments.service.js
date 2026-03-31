@@ -57,8 +57,8 @@ async function createPayment(enrollmentId, data, file, role, userId) {
       .values({ paymentId: created.id, documentUrl: url, updatedAt: new Date() })
       .returning();
 
-    logAudit(userId, 'create', 'payments', created.id, null, created);
-    logAudit(userId, 'create', 'payment_documents', doc.id, null, doc);
+    await logAudit(userId, 'create', 'payments', created.id, null, created);
+    await logAudit(userId, 'create', 'payment_documents', doc.id, null, doc);
 
     return created;
   });
@@ -117,7 +117,7 @@ async function updatePayment(id, data, role, userId) {
     .where(eq(payments.id, id))
     .returning();
 
-  logAudit(userId, 'update', 'payments', id, existing, updated);
+  await logAudit(userId, 'update', 'payments', id, existing, updated);
   return updated;
 }
 

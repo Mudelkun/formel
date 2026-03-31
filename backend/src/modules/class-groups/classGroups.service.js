@@ -33,7 +33,7 @@ async function createClassGroup(data, userId) {
     .values({ ...data, updatedAt: new Date() })
     .returning();
 
-  logAudit(userId, 'create', 'class_groups', created.id, null, created);
+  await logAudit(userId, 'create', 'class_groups', created.id, null, created);
   return created;
 }
 
@@ -77,7 +77,7 @@ async function updateClassGroup(id, data, userId) {
     .where(eq(classGroups.id, id))
     .returning();
 
-  logAudit(userId, 'update', 'class_groups', id, existing, updated);
+  await logAudit(userId, 'update', 'class_groups', id, existing, updated);
   return updated;
 }
 
@@ -92,7 +92,7 @@ async function deleteClassGroup(id, userId) {
   }
 
   await db.delete(classGroups).where(eq(classGroups.id, id));
-  logAudit(userId, 'delete', 'class_groups', id, existing, null);
+  await logAudit(userId, 'delete', 'class_groups', id, existing, null);
 }
 
 module.exports = { listClassGroups, createClassGroup, getClassGroupById, updateClassGroup, deleteClassGroup };

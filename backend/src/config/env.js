@@ -13,6 +13,7 @@ const envSchema = z.object({
   R2_BUCKET_NAME: z.string().optional(),
   R2_PUBLIC_URL: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  SENTRY_DSN: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().default('Formel <onboarding@resend.dev>'),
   CORS_ORIGINS: z.string().default('http://localhost:5173').transform((s) => s.split(',')),
   REFRESH_TOKEN_EXPIRY_DAYS: z.coerce.number().default(7),

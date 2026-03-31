@@ -18,11 +18,12 @@
     "db:reset": "node src/db/delete-db.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Rodarly clavensky perilus",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1010.0",
+    "@sentry/node": "^10.46.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

@@ -23,14 +23,14 @@ async function updateSettings(data, userId) {
       .insert(schoolSettings)
       .values({ ...data })
       .returning();
-    logAudit(userId, 'create', 'school_settings', created.id, null, created);
+    await logAudit(userId, 'create', 'school_settings', created.id, null, created);
     result = created;
   } else {
     const [updated] = await db
       .update(schoolSettings)
       .set({ ...data, updatedAt: new Date() })
       .returning();
-    logAudit(userId, 'update', 'school_settings', existing.id, existing, updated);
+    await logAudit(userId, 'update', 'school_settings', existing.id, existing, updated);
     result = updated;
   }
 

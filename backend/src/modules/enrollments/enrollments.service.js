@@ -133,7 +133,7 @@ async function createEnrollment(data, userId) {
     .values({ ...data, updatedAt: new Date() })
     .returning();
 
-  logAudit(userId, 'create', 'enrollments', created.id, null, created);
+  await logAudit(userId, 'create', 'enrollments', created.id, null, created);
   return created;
 }
 
@@ -185,7 +185,7 @@ async function updateEnrollment(id, data, userId) {
     .where(eq(enrollments.id, id))
     .returning();
 
-  logAudit(userId, 'update', 'enrollments', id, existing, updated);
+  await logAudit(userId, 'update', 'enrollments', id, existing, updated);
   return updated;
 }
 

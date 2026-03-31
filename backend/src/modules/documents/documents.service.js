@@ -4,6 +4,7 @@ const { students } = require('../../db/schema/students');
 const { studentDocuments } = require('../../db/schema/studentDocuments');
 const { uploadFile, deleteFile, extractKeyFromUrl } = require('../../lib/uploadService');
 const { AppError } = require('../../lib/apiError');
+const { logAudit } = require('../../lib/auditLogger');
 
 async function verifyStudentExists(studentId) {
   const [student] = await db
@@ -28,7 +29,7 @@ async function listDocuments(studentId) {
 
 const ALLOWED_DOC_MIMES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
-async function uploadDocument(studentId, file, documentType) {
+async function uploadDocument(studentId, file, documentType, userId) {
   await verifyStudentExists(studentId);
 
   if (!file) {
@@ -53,10 +54,11 @@ async function uploadDocument(studentId, file, documentType) {
     })
     .returning();
 
+  await logAudit(userId, 'create', 'student_documents', doc.id, null, doc);
   return doc;
 }
 
-async function deleteDocument(studentId, docId) {
+async function deleteDocument(studentId, docId, userId) {
   const [doc] = await db
     .select()
     .from(studentDocuments)
@@ -69,6 +71,7 @@ async function deleteDocument(studentId, docId) {
   const key = extractKeyFromUrl(doc.documentUrl);
   await deleteFile(key);
   await db.delete(studentDocuments).where(eq(studentDocuments.id, docId));
+  await logAudit(userId, 'delete', 'student_documents', docId, doc, null);
 }
 
 const ALLOWED_PHOTO_MIMES = ['image/jpeg', 'image/png', 'image/webp'];

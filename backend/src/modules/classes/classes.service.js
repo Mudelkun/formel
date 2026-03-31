@@ -75,7 +75,7 @@ async function createClass(data, userId) {
     .values({ ...data, updatedAt: new Date() })
     .returning();
 
-  logAudit(userId, 'create', 'classes', created.id, null, created);
+  await logAudit(userId, 'create', 'classes', created.id, null, created);
   return created;
 }
 
@@ -130,7 +130,7 @@ async function updateClass(id, data, userId) {
     .where(eq(classes.id, id))
     .returning();
 
-  logAudit(userId, 'update', 'classes', id, existing, updated);
+  await logAudit(userId, 'update', 'classes', id, existing, updated);
   return updated;
 }
 

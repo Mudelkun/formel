@@ -52,7 +52,7 @@ async function uploadDocument(paymentId, file, userId) {
     })
     .returning();
 
-  logAudit(userId, 'create', 'payment_documents', doc.id, null, doc);
+  await logAudit(userId, 'create', 'payment_documents', doc.id, null, doc);
   return doc;
 }
 
@@ -70,7 +70,7 @@ async function deleteDocument(paymentId, docId, userId) {
   await deleteFile(key);
   await db.delete(paymentDocuments).where(eq(paymentDocuments.id, docId));
 
-  logAudit(userId, 'delete', 'payment_documents', docId, doc, null);
+  await logAudit(userId, 'delete', 'payment_documents', docId, doc, null);
 }
 
 module.exports = { listDocuments, uploadDocument, deleteDocument };

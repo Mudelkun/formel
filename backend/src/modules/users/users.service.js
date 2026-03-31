@@ -82,18 +82,8 @@ async function updateUser(id, data) {
     throw new AppError(404, 'User not found');
   }
 
-  if (data.email) {
-    const [duplicate] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, data.email));
-
-    if (duplicate && duplicate.id !== id) {
-      throw new AppError(409, 'Email already in use');
-    }
-  }
-
   const updateData = { ...data, updatedAt: new Date() };
+  delete updateData.email;
 
   if (data.password) {
     updateData.passwordHash = await bcrypt.hash(data.password, 10);

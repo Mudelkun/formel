@@ -19,13 +19,12 @@ import { Loader2 } from 'lucide-react';
 
 const editUserSchema = z.object({
   name: z.string().min(1, 'Nom requis').max(100),
-  email: z.string().email('Email invalide'),
   password: z.string()
     .min(8, 'Minimum 8 caractères')
     .regex(/[A-Z]/, 'Doit contenir une majuscule')
     .regex(/[0-9]/, 'Doit contenir un chiffre')
     .optional().or(z.literal('')),
-  role: z.enum(['secretary', 'teacher', 'accountant', 'admin'], { error: 'Rôle requis' }),
+  role: z.enum(['admin', 'secretary', 'teacher', 'accountant'], { error: 'Rôle requis' }),
 });
 
 type EditUserFormData = z.infer<typeof editUserSchema>;
@@ -48,7 +47,6 @@ export default function EditUserDialog({ user: editUser, open, onOpenChange }: P
     resolver: zodResolver(editUserSchema),
     defaultValues: {
       name: editUser.name,
-      email: editUser.email,
       password: '',
       role: editUser.role,
     },
@@ -58,7 +56,6 @@ export default function EditUserDialog({ user: editUser, open, onOpenChange }: P
   useEffect(() => {
     reset({
       name: editUser.name,
-      email: editUser.email,
       password: '',
       role: editUser.role,
     });
@@ -74,7 +71,6 @@ export default function EditUserDialog({ user: editUser, open, onOpenChange }: P
       await updateUser.mutateAsync({
         id: editUser.id,
         name: data.name,
-        email: data.email,
         role: data.role,
         ...(data.password ? { password: data.password } : {}),
       });
@@ -104,11 +100,9 @@ export default function EditUserDialog({ user: editUser, open, onOpenChange }: P
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="edit-email">Email *</Label>
-            <Input id="edit-email" type="email" {...register('email')} />
-            {errors.email && (
-              <p className="text-xs text-destructive">{errors.email.message}</p>
-            )}
+            <Label htmlFor="edit-email">Email</Label>
+            <Input id="edit-email" type="email" value={editUser.email} disabled className="opacity-60" />
+            <p className="text-xs text-muted-foreground">L'email ne peut pas être modifié.</p>
           </div>
 
           <div className="space-y-1.5">

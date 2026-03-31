@@ -36,7 +36,7 @@ async function createScholarship(enrollmentId, data, userId) {
     .values({ ...data, enrollmentId, updatedAt: new Date() })
     .returning();
 
-  logAudit(userId, 'create', 'scholarships', created.id, null, created);
+  await logAudit(userId, 'create', 'scholarships', created.id, null, created);
   return created;
 }
 
@@ -56,7 +56,7 @@ async function updateScholarship(scholarshipId, data, userId) {
     .where(eq(scholarships.id, scholarshipId))
     .returning();
 
-  logAudit(userId, 'update', 'scholarships', scholarshipId, existing, updated);
+  await logAudit(userId, 'update', 'scholarships', scholarshipId, existing, updated);
   return updated;
 }
 
@@ -72,7 +72,7 @@ async function deleteScholarship(scholarshipId, userId) {
 
   await db.delete(scholarships).where(eq(scholarships.id, scholarshipId));
 
-  logAudit(userId, 'delete', 'scholarships', scholarshipId, existing, null);
+  await logAudit(userId, 'delete', 'scholarships', scholarshipId, existing, null);
 }
 
 module.exports = { listScholarships, createScholarship, updateScholarship, deleteScholarship };

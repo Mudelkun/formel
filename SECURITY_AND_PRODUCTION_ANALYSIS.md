@@ -23,129 +23,16 @@ These are genuine strengths — don't change them:
 
 ---
 
-## Remaining Issues to Fix
+## Previously Identified Issues (All Fixed)
 
-### 1. Refresh Tokens Never Cleaned Up
-**Priority: MEDIUM**
-**Affected:** `refresh_tokens` table
-
-Revoked and expired refresh tokens accumulate forever. Over time this table grows unbounded and slows queries.
-
-**Fix:** Add a scheduled cleanup (cron job or on-startup task):
-
-```js
-async function cleanupExpiredTokens() {
-  await db.delete(refreshTokens).where(
-    or(
-      eq(refreshTokens.revoked, true),
-      sql`${refreshTokens.expiresAt} < NOW()`
-    )
-  );
-}
-
-// Run on server start and every 24 hours
-cleanupExpiredTokens();
-setInterval(cleanupExpiredTokens, 24 * 60 * 60 * 1000);
-```
-
----
-
-### 2. Cookie Secure Flag Depends on NODE_ENV
-**Priority: MEDIUM**
-**File:** [auth.controller.js:8](backend/src/modules/auth/auth.controller.js#L8)
-
-```js
-secure: process.env.NODE_ENV === 'production',
-```
-
-If `NODE_ENV` is not explicitly set in production, the `Secure` flag is absent and refresh tokens can be intercepted over HTTP.
-
-**Fix:** Default to secure, only allow insecure locally:
-
-```js
-secure: process.env.NODE_ENV !== 'development',
-```
-
----
-
-### 3. Audit Logging Is Fire-and-Forget
-**Priority: LOW**
-**File:** [auditLogger.js](backend/src/lib/auditLogger.js)
-
-The audit logger swallows failures silently. Security-critical actions (payment creation, deletion) may not be recorded.
-
-**Fix:**
-
-```js
-async function logAudit(userId, action, tableName, recordId, oldData, newData) {
-  await db.insert(auditLogs).values({ userId, action, tableName, recordId, oldData, newData });
-}
-```
-
-Update callers to `await logAudit(...)` for financial and auth operations. Keep fire-and-forget for low-priority actions if preferred.
-
----
-
-### 4. Hardcoded Seed Passwords
-**Priority: LOW**
-**File:** [seed.js:17](backend/src/db/seed.js#L17)
-
-Default credentials (`admin@formel.school / admin123`) are in source. Low real-world risk since seeds only run once, but worth hardening.
-
-**Fix:**
-
-```js
-const adminPass = process.env.SEED_ADMIN_PASSWORD ?? crypto.randomBytes(12).toString('hex');
-console.log('Admin password:', adminPass);
-const passwordHash = await bcrypt.hash(adminPass, 10);
-```
-
----
-
-### 5. No Structured Logging or Error Tracking
-**Priority: LOW (pre-launch), MEDIUM (post-launch)**
-**Affected:** Entire backend
-
-All errors go to `console.error()`. In production you'll have no visibility into failures.
-
-**Minimum fix:** Add Sentry (free tier handles ~5,000 errors/month):
-
-```bash
-npm install @sentry/node
-```
-
-```js
-// backend/src/index.js (top)
-import * as Sentry from '@sentry/node';
-Sentry.init({ dsn: process.env.SENTRY_DSN });
-
-// In errorHandler.js
-Sentry.captureException(err);
-```
-
----
-
-### 6. No Graceful Shutdown
-**Priority: LOW**
-**File:** [index.js:46-48](backend/src/index.js#L46-L48)
-
-On deploy restarts, in-flight requests are killed abruptly.
-
-**Fix:**
-
-```js
-const server = app.listen(env.PORT, () => {
-  console.log(`Server running on port ${env.PORT}`);
-});
-
-const shutdown = () => {
-  server.close(() => process.exit(0));
-  setTimeout(() => process.exit(1), 15000);
-};
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
-```
+| # | Issue | How It Was Fixed |
+|---|---|---|
+| 1 | **Refresh Tokens Never Cleaned Up** | Expired/revoked tokens are now deleted on server start and every 24 hours via `cleanupExpiredTokens()` in [index.js](backend/src/index.js). |
+| 2 | **Cookie Secure Flag Depends on NODE_ENV** | Changed to `secure: process.env.NODE_ENV !== 'development'` — cookies default to secure unless explicitly in dev mode. [auth.controller.js:8](backend/src/modules/auth/auth.controller.js#L8) |
+| 3 | **Audit Logging Is Fire-and-Forget** | `logAudit` is now `async` and all 22 call sites across 8 service files `await` it. No more silently swallowed failures. [auditLogger.js](backend/src/lib/auditLogger.js) |
+| 4 | **Hardcoded Seed Passwords** | Seed now uses `SEED_ADMIN_PASSWORD` env var or generates a random 24-char hex password. No more hardcoded `admin123`. [seed.js](backend/src/db/seed.js) |
+| 5 | **No Structured Logging or Error Tracking** | `@sentry/node` installed and initialized conditionally when `SENTRY_DSN` is set. Unhandled errors captured in [errorHandler.js](backend/src/middleware/errorHandler.js). |
+| 6 | **No Graceful Shutdown** | Server handles `SIGTERM`/`SIGINT`, closes connections cleanly with a 15-second forced timeout. [index.js](backend/src/index.js) |
 
 ---
 
@@ -174,14 +61,16 @@ process.on('SIGINT', shutdown);
 - [ ] Set `NODE_ENV=production` in hosting
 - [ ] Rotate all secrets (DB password, JWT, JWT_REFRESH_SECRET, R2 keys, Resend key) in hosting platform
 - [ ] Set `CORS_ORIGINS=https://yourdomain.com` in hosting platform
+- [ ] Set `SENTRY_DSN` in hosting platform (get DSN from [sentry.io](https://sentry.io))
 - [ ] Enable automated database backups in hosting provider
 
 ### After launch (first 2 weeks)
-- [ ] Add refresh token cleanup job (#1)
-- [ ] Make audit logging async for financial operations (#3)
-- [ ] Harden seed passwords (#4)
-- [ ] Set up Sentry error tracking (#5)
-- [ ] Add graceful shutdown (#6)
+- [x] ~~Add refresh token cleanup job (#1)~~ — Done
+- [x] ~~Cookie secure flag defaults to secure (#2)~~ — Done
+- [x] ~~Make audit logging async for all operations (#3)~~ — Done
+- [x] ~~Harden seed passwords (#4)~~ — Done
+- [x] ~~Set up Sentry error tracking (#5)~~ — Done
+- [x] ~~Add graceful shutdown (#6)~~ — Done
 
 ---
 

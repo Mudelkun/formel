@@ -41,7 +41,7 @@ async function createSchoolYear(data, userId) {
     .values({ ...data, updatedAt: new Date() })
     .returning();
 
-  logAudit(userId, 'create', 'school_years', created.id, null, created);
+  await logAudit(userId, 'create', 'school_years', created.id, null, created);
   return created;
 }
 
@@ -85,7 +85,7 @@ async function updateSchoolYear(id, data, userId) {
     .where(eq(schoolYears.id, id))
     .returning();
 
-  logAudit(userId, 'update', 'school_years', id, existing, updated);
+  await logAudit(userId, 'update', 'school_years', id, existing, updated);
   return updated;
 }
 
@@ -114,7 +114,7 @@ async function activateSchoolYear(id, userId) {
     return activated;
   });
 
-  logAudit(userId, 'activate', 'school_years', id, target, result);
+  await logAudit(userId, 'activate', 'school_years', id, target, result);
   return result;
 }
 
@@ -207,7 +207,7 @@ async function promoteStudents(targetSchoolYearId, userId) {
     return { promoted, skipped, graduated };
   });
 
-  logAudit(userId, 'promote', 'school_years', targetSchoolYearId, { sourceYearId: sourceYear.id }, result);
+  await logAudit(userId, 'promote', 'school_years', targetSchoolYearId, { sourceYearId: sourceYear.id }, result);
   return { ...result, sourceYear: sourceYear.year, targetYear: targetYear.year };
 }
 

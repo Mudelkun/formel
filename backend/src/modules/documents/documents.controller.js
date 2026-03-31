@@ -7,12 +7,12 @@ const listDocuments = asyncHandler(async (req, res) => {
 });
 
 const uploadDocument = asyncHandler(async (req, res) => {
-  const doc = await documentsService.uploadDocument(req.params.id, req.file, req.body.documentType);
+  const doc = await documentsService.uploadDocument(req.params.id, req.file, req.body.documentType, req.user.userId);
   res.status(201).json(doc);
 });
 
 const deleteDocument = asyncHandler(async (req, res) => {
-  await documentsService.deleteDocument(req.params.id, req.params.docId);
+  await documentsService.deleteDocument(req.params.id, req.params.docId, req.user.userId);
   res.status(204).send();
 });
 

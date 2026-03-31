@@ -1,8 +1,18 @@
+import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { useSettings } from '@/hooks/use-settings';
 
 export default function AppLayout() {
+  const { data: settings } = useSettings();
+
+  useEffect(() => {
+    document.title = settings?.schoolName
+      ? `Formel — ${settings.schoolName}`
+      : 'Formel';
+  }, [settings?.schoolName]);
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />

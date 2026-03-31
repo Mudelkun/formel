@@ -1,3 +1,4 @@
+const Sentry = require('@sentry/node');
 const { AppError } = require('../lib/apiError');
 
 const errorHandler = (err, req, res, next) => {
@@ -18,6 +19,9 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  if (Sentry.isInitialized()) {
+    Sentry.captureException(err);
+  }
   console.error('Unhandled error:', err);
   res.status(500).json({
     error: { message: 'Internal server error' },

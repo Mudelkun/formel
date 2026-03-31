@@ -1,10 +1,18 @@
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN });
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const { or, eq, sql } = require('drizzle-orm');
 const { env } = require('./config/env');
+const { db } = require('./config/database');
+const { refreshTokens } = require('./db/schema/refreshTokens');
 const { errorHandler } = require('./middleware/errorHandler');
 const authRouter = require('./modules/auth/auth.routes');
 const usersRouter = require('./modules/users/users.routes');
@@ -81,8 +89,43 @@ app.get('{*path}', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
-app.listen(env.PORT, () => {
+// --- Refresh token cleanup ---
+async function cleanupExpiredTokens() {
+  try {
+    await db.delete(refreshTokens).where(
+      or(
+        eq(refreshTokens.revoked, true),
+        sql`${refreshTokens.expiresAt} < NOW()`
+      )
+    );
+    console.log('Expired refresh tokens cleaned up');
+  } catch (err) {
+    console.error('Token cleanup failed:', err);
+  }
+}
+
+const server = app.listen(env.PORT, () => {
   console.log(`Server running on port ${env.PORT}`);
+  cleanupExpiredTokens();
 });
+
+const cleanupInterval = setInterval(cleanupExpiredTokens, 24 * 60 * 60 * 1000);
+
+// --- Graceful shutdown ---
+const shutdown = () => {
+  console.log('Shutting down gracefully...');
+  clearInterval(cleanupInterval);
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 15000);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 module.exports = { app };

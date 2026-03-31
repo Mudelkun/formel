@@ -101,7 +101,7 @@ async function createFees(classGroupId, data, userId) {
     return { bookFee: config.bookFee, feeConfigId: config.id, versements: versementRecords };
   });
 
-  logAudit(userId, 'create', 'fee_configs', result.feeConfigId, null, result);
+  await logAudit(userId, 'create', 'fee_configs', result.feeConfigId, null, result);
   return result;
 }
 
@@ -165,7 +165,7 @@ async function updateFees(classGroupId, data, userId) {
     return { bookFee: config.bookFee, feeConfigId: config.id, versements: versementRecords };
   });
 
-  logAudit(userId, 'update', 'fee_configs', result.feeConfigId, null, result);
+  await logAudit(userId, 'update', 'fee_configs', result.feeConfigId, null, result);
   return result;
 }
 
@@ -185,7 +185,7 @@ async function updateVersement(id, data, userId) {
     .where(eq(versements.id, id))
     .returning();
 
-  logAudit(userId, 'update', 'versements', id, existing, updated);
+  await logAudit(userId, 'update', 'versements', id, existing, updated);
   return updated;
 }
 

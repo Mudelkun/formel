@@ -2,6 +2,7 @@ const { drizzle } = require('drizzle-orm/postgres-js');
 const { eq } = require('drizzle-orm');
 const postgres = require('postgres');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -17,7 +18,8 @@ async function seed() {
   // --- Admin User (skip if already exists) ---
   const existing = await db.select().from(schema.users).where(eq(schema.users.email, 'admin@formel.school')).limit(1);
   if (existing.length === 0) {
-    const passwordHash = await bcrypt.hash('admin123', 10);
+    const adminPass = process.env.SEED_ADMIN_PASSWORD ?? crypto.randomBytes(12).toString('hex');
+    const passwordHash = await bcrypt.hash(adminPass, 10);
     await db.insert(schema.users).values({
       name: 'Admin Principal',
       email: 'admin@formel.school',
@@ -25,6 +27,7 @@ async function seed() {
       role: 'admin',
     });
     console.log('✓ Admin user created');
+    console.log(`  admin@formel.school / ${adminPass}`);
   } else {
     console.log('✓ Admin user already exists, skipping');
   }
@@ -45,8 +48,6 @@ async function seed() {
   }
 
   console.log('\nSeed complete!');
-  console.log('\nDefault admin account:');
-  console.log('  admin@formel.school / admin123');
 
   await client.end();
 }
