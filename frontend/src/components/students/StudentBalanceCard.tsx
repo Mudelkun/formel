@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditCard, ArrowRightLeft, Loader2 } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 interface Props {
   studentId: string;
@@ -76,7 +77,7 @@ export default function StudentBalanceCard({ studentId }: Props) {
                   <div>
                     <p className="text-sm font-medium">{v.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Échéance : {new Date(v.dueDate).toLocaleDateString('fr-FR')}
+                      Échéance : {formatDate(v.dueDate)}
                     </p>
                   </div>
                   <div className="text-right">

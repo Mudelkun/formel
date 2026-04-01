@@ -24,17 +24,26 @@ import AuthImage from '@/components/AuthImage';
 
 const PAGE_SIZE = 20;
 
+// Module-level: survives React navigation, resets on full page refresh.
+const savedFilters = {
+  search: '',
+  enrollmentStatus: '',
+  classId: '',
+  overdue: false,
+  scholarship: '',
+};
+
 export default function StudentsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const canCreate = user?.role === 'admin' || user?.role === 'secretary';
   const [createOpen, setCreateOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [enrollmentStatusFilter, setEnrollmentStatusFilter] = useState('');
-  const [classFilter, setClassFilter] = useState('');
-  const [overdueFilter, setOverdueFilter] = useState(false);
-  const [scholarshipFilter, setScholarshipFilter] = useState('');
+  const [search, setSearch] = useState(savedFilters.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(savedFilters.search);
+  const [enrollmentStatusFilter, setEnrollmentStatusFilter] = useState(savedFilters.enrollmentStatus);
+  const [classFilter, setClassFilter] = useState(savedFilters.classId);
+  const [overdueFilter, setOverdueFilter] = useState(savedFilters.overdue);
+  const [scholarshipFilter, setScholarshipFilter] = useState(savedFilters.scholarship);
   // Cursor stack: [undefined, cursor1, cursor2, ...] — index 0 = first page (no cursor)
   const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined]);
   const [pageIndex, setPageIndex] = useState(0);
@@ -43,6 +52,13 @@ export default function StudentsPage() {
     setCursorStack([undefined]);
     setPageIndex(0);
   }, []);
+
+  // Persist filter changes to module-level state
+  function updateSearch(value: string) { savedFilters.search = value; setSearch(value); }
+  function updateEnrollmentStatus(value: string) { savedFilters.enrollmentStatus = value; setEnrollmentStatusFilter(value); }
+  function updateClassFilter(value: string) { savedFilters.classId = value; setClassFilter(value); }
+  function updateOverdue(value: boolean) { savedFilters.overdue = value; setOverdueFilter(value); }
+  function updateScholarship(value: string) { savedFilters.scholarship = value; setScholarshipFilter(value); }
 
   // Debounce search
   useEffect(() => {
@@ -115,13 +131,13 @@ export default function StudentsPage() {
                 placeholder="Rechercher un élève..."
                 className="pl-9"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => updateSearch(e.target.value)}
               />
             </div>
             <select
               className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
+              onChange={(e) => updateClassFilter(e.target.value)}
             >
               <option value="">Toutes les classes</option>
               {classes.map((c) => (
@@ -131,7 +147,7 @@ export default function StudentsPage() {
             <select
               className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={enrollmentStatusFilter}
-              onChange={(e) => setEnrollmentStatusFilter(e.target.value)}
+              onChange={(e) => updateEnrollmentStatus(e.target.value)}
             >
               <option value="">Inscrits</option>
               <option value="transferred">Transférés</option>
@@ -141,7 +157,7 @@ export default function StudentsPage() {
             <select
               className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={scholarshipFilter}
-              onChange={(e) => setScholarshipFilter(e.target.value)}
+              onChange={(e) => updateScholarship(e.target.value)}
             >
               <option value="">Élèves réguliers</option>
               <option value="true">Boursiers</option>
@@ -151,7 +167,7 @@ export default function StudentsPage() {
               variant={overdueFilter ? 'destructive' : 'outline'}
               size="sm"
               className="h-8 shrink-0 gap-1.5"
-              onClick={() => setOverdueFilter((v) => !v)}
+              onClick={() => updateOverdue(!overdueFilter)}
             >
               <AlertTriangle className="h-3.5 w-3.5" />
               En retard

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
 import type { StudentDetail } from '@/types/student';
+import { formatDate } from '@/lib/utils';
 
 interface Props {
   student: StudentDetail;
@@ -22,7 +23,7 @@ export default function StudentPersonalInfo({ student }: Props) {
     { label: 'Prénom', value: student.firstName },
     { label: 'Nom', value: student.lastName },
     { label: 'Genre', value: student.gender === 'male' ? 'Masculin' : 'Féminin' },
-    { label: 'Date de naissance', value: new Date(student.birthDate).toLocaleDateString('fr-FR') },
+    { label: 'Date de naissance', value: formatDate(student.birthDate) },
     { label: 'NIE', value: student.nie || '—' },
     { label: 'Adresse', value: student.address || '—' },
     { label: 'Boursier', value: hasScholarship ? 'Oui' : 'Non' },

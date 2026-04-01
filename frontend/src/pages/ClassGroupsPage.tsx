@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { formatDate } from '@/lib/utils';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import ConfigureFeesDialog from '@/components/class-groups/ConfigureFeesDialog';
@@ -122,7 +123,7 @@ function GroupCard({
                 <p className="text-xs text-muted-foreground">{v.name}</p>
                 <p className="text-lg font-semibold mt-0.5">{formatAmount(v.amount)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Échéance : {new Date(v.dueDate).toLocaleDateString('fr-FR')}
+                  Échéance : {formatDate(v.dueDate)}
                 </p>
               </div>
             ))}

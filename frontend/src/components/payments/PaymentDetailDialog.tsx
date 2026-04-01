@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Upload, Trash2, Check, Clock, X, ChevronLeft, ChevronRight, ZoomIn, ExternalLink } from 'lucide-react';
 import { useFileUrl } from '@/hooks/use-file-url';
+import { formatDate } from '@/lib/utils';
 
 const methodLabels: Record<string, string> = {
   cash: 'Espèces',
@@ -119,7 +120,7 @@ export default function PaymentDetailDialog({ paymentId, open, onOpenChange }: P
               <div>
                 <p className="text-xs text-muted-foreground">Date</p>
                 <p className="text-sm">
-                  {new Date(payment.paymentDate).toLocaleDateString('fr-FR')}
+                  {formatDate(payment.paymentDate)}
                 </p>
               </div>
               <div>

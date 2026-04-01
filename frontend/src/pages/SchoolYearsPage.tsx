@@ -20,8 +20,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/context/auth';
-import { useSchoolYears, useCreateSchoolYear, useActivateSchoolYear, usePromoteStudents } from '@/hooks/use-students';
-import { Plus, CalendarDays, Check, ArrowUpRight, Loader2 } from 'lucide-react';
+import { useSchoolYears, useCreateSchoolYear, useUpdateSchoolYear, useActivateSchoolYear, usePromoteStudents } from '@/hooks/use-students';
+import type { SchoolYear } from '@/types/student';
+import { Plus, CalendarDays, Check, ArrowUpRight, Loader2, Pencil } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 const createYearSchema = z.object({
   year: z.string().min(1, 'Année requise').regex(/^\d{4}-\d{4}$/, 'Format requis : 2025-2026'),
@@ -29,7 +31,13 @@ const createYearSchema = z.object({
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date requise'),
 });
 
+const editDatesSchema = z.object({
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date requise'),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date requise'),
+});
+
 type CreateYearFormData = z.infer<typeof createYearSchema>;
+type EditDatesFormData = z.infer<typeof editDatesSchema>;
 
 export default function SchoolYearsPage() {
   const { user } = useAuth();
@@ -39,9 +47,34 @@ export default function SchoolYearsPage() {
   const activateSchoolYear = useActivateSchoolYear();
   const promoteStudents = usePromoteStudents();
 
+  const updateSchoolYear = useUpdateSchoolYear();
+
   const [createOpen, setCreateOpen] = useState(false);
+  const [editYear, setEditYear] = useState<SchoolYear | null>(null);
   const [activateId, setActivateId] = useState<string | null>(null);
   const [promoteOpen, setPromoteOpen] = useState(false);
+
+  const {
+    register: registerEdit,
+    handleSubmit: handleEditSubmit,
+    reset: resetEdit,
+    formState: { errors: editErrors, isSubmitting: isEditSubmitting },
+  } = useForm<EditDatesFormData>({ resolver: zodResolver(editDatesSchema) });
+
+  function openEdit(year: SchoolYear) {
+    resetEdit({ startDate: year.startDate, endDate: year.endDate });
+    setEditYear(year);
+  }
+
+  async function onEditSubmit(data: EditDatesFormData) {
+    if (!editYear) return;
+    try {
+      await updateSchoolYear.mutateAsync({ id: editYear.id, ...data });
+      setEditYear(null);
+    } catch {
+      // Error toast handled by hook
+    }
+  }
 
   const years = [...(yearsData?.data ?? [])].sort((a, b) => a.year.localeCompare(b.year));
   const activeYear = years.find((y) => y.isActive);
@@ -161,10 +194,10 @@ export default function SchoolYearsPage() {
                 </div>
                 <p className="text-lg font-semibold">{year.year}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {new Date(year.startDate).toLocaleDateString('fr-FR')} — {new Date(year.endDate).toLocaleDateString('fr-FR')}
+                  {formatDate(year.startDate)} — {formatDate(year.endDate)}
                 </p>
                 {isAdmin && (
-                  <div className="mt-auto pt-4">
+                  <div className="mt-auto pt-4 flex flex-col gap-2">
                     {year.isActive ? (
                       <Button
                         variant="outline"
@@ -185,6 +218,15 @@ export default function SchoolYearsPage() {
                         Activer cette année
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => openEdit(year)}
+                    >
+                      <Pencil className="mr-2 h-3.5 w-3.5" />
+                      Modifier les dates
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -233,6 +275,45 @@ export default function SchoolYearsPage() {
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Créer
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dates Dialog */}
+      <Dialog open={!!editYear} onOpenChange={(open) => !open && setEditYear(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier les dates — {editYear?.year}</DialogTitle>
+            <DialogDescription>
+              Mettez à jour les dates de début et de fin de l'année scolaire.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-startDate">Date de début *</Label>
+                <Input id="edit-startDate" type="date" {...registerEdit('startDate')} />
+                {editErrors.startDate && (
+                  <p className="text-xs text-destructive">{editErrors.startDate.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-endDate">Date de fin *</Label>
+                <Input id="edit-endDate" type="date" {...registerEdit('endDate')} />
+                {editErrors.endDate && (
+                  <p className="text-xs text-destructive">{editErrors.endDate.message}</p>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditYear(null)}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={isEditSubmitting}>
+                {isEditSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Enregistrer
               </Button>
             </DialogFooter>
           </form>

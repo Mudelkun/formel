@@ -17,6 +17,7 @@ interface Props {
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('fr-FR', {
+    timeZone: 'UTC',
     year: 'numeric',
     month: 'short',
     day: 'numeric',

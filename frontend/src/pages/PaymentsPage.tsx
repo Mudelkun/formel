@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/context/auth';
 import { usePayments } from '@/hooks/use-payments';
 import { useCurrency } from '@/hooks/use-currency';
@@ -247,7 +248,7 @@ export default function PaymentsPage() {
                           {formatAmount(p.amount)}
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">
-                          {new Date(p.paymentDate).toLocaleDateString('fr-FR')}
+                          {formatDate(p.paymentDate)}
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           <Badge variant="outline" className="text-xs">

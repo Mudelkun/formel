@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GraduationCap, Users, CreditCard, AlertTriangle, TrendingUp, CalendarDays } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 import {
   AreaChart,
   Area,
@@ -313,7 +314,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="text-sm font-medium">{d.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        Échéance : {new Date(d.dueDate).toLocaleDateString('fr-FR')}
+                        Échéance : {formatDate(d.dueDate)}
                       </p>
                     </div>
                     <Badge variant="outline" className="text-xs font-mono">

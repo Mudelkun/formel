@@ -52,17 +52,13 @@ const C = {
 
 function fmtDate(date: string) {
   return new Date(date).toLocaleDateString('fr-FR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+    timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric',
   });
 }
 
 function fmtDateShort(date: string) {
   return new Date(date).toLocaleDateString('fr-FR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+    timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric',
   });
 }
 

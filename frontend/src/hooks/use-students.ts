@@ -19,7 +19,7 @@ import {
   type StudentFilters,
 } from '@/api/students';
 import { listClasses, createClass, updateClass } from '@/api/classes';
-import { listSchoolYears, createSchoolYear, activateSchoolYear, promoteStudents } from '@/api/school-years';
+import { listSchoolYears, createSchoolYear, updateSchoolYear, activateSchoolYear, promoteStudents } from '@/api/school-years';
 import { createEnrollment, updateEnrollmentStatus, createScholarship, listScholarships, updateScholarship, deleteScholarship, listPayments, type CreateScholarshipInput, type EnrollmentStatus } from '@/api/enrollments';
 import type {
   CreateStudentInput,
@@ -383,6 +383,21 @@ export function useCreateSchoolYear() {
     },
     onError: () => {
       toast.error("Erreur lors de la création de l'année scolaire");
+    },
+  });
+}
+
+export function useUpdateSchoolYear() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; startDate?: string; endDate?: string }) =>
+      updateSchoolYear(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['school-years'] });
+      toast.success('Année scolaire mise à jour');
+    },
+    onError: () => {
+      toast.error("Erreur lors de la mise à jour");
     },
   });
 }
