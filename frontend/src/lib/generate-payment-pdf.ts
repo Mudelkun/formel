@@ -91,6 +91,65 @@ function statusColor(status: string): readonly [number, number, number] {
   }
 }
 
+// ── Photo helpers ────────────────────────────────────────
+
+const PHOTO_W = 28;  // mm
+const PHOTO_H = 32;  // mm
+const PHOTO_RADIUS = 3;
+
+/**
+ * Draws a styled placeholder when the student has no photo.
+ * Renders a light card with a person silhouette.
+ */
+function drawPhotoPlaceholder(doc: jsPDF, x: number, y: number) {
+  // Background card
+  doc.setFillColor(241, 245, 249); // slate-100
+  doc.setDrawColor(209, 213, 219); // gray-300
+  doc.setLineWidth(0.4);
+  doc.roundedRect(x, y, PHOTO_W, PHOTO_H, PHOTO_RADIUS, PHOTO_RADIUS, 'FD');
+
+  // Head circle
+  const cx = x + PHOTO_W / 2;
+  const headR = 4.5;
+  const headCy = y + 11;
+  doc.setFillColor(203, 213, 225); // slate-300
+  doc.setDrawColor(203, 213, 225);
+  doc.circle(cx, headCy, headR, 'F');
+
+  // Body / shoulders arc (drawn as a filled ellipse clipped to bottom half)
+  const bodyW = PHOTO_W * 0.65;
+  const bodyH = 8;
+  const bodyCy = y + PHOTO_H - 4;
+  doc.setFillColor(203, 213, 225);
+  doc.ellipse(cx, bodyCy, bodyW / 2, bodyH / 2, 'F');
+
+  // Label
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.setTextColor(148, 163, 184); // slate-400
+  doc.text('Photo', cx, y + PHOTO_H - 2.5, { align: 'center' });
+}
+
+/**
+ * Draws the student photo (base64 data URL) in a rounded frame.
+ */
+function drawPhoto(doc: jsPDF, dataUrl: string, x: number, y: number) {
+  // Background + border
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(209, 213, 219);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(x, y, PHOTO_W, PHOTO_H, PHOTO_RADIUS, PHOTO_RADIUS, 'FD');
+
+  // Image inset by 1mm on each side — format auto-detected from data URL
+  const pad = 1;
+  try {
+    doc.addImage(dataUrl, x + pad, y + pad, PHOTO_W - pad * 2, PHOTO_H - pad * 2);
+  } catch {
+    // Fallback if image format is unexpected
+    drawPhotoPlaceholder(doc, x, y);
+  }
+}
+
 // ── Main export ──────────────────────────────────────────
 
 export function generatePaymentHistoryPdf(
@@ -98,6 +157,7 @@ export function generatePaymentHistoryPdf(
   payments: Payment[],
   settings: SchoolSettings | undefined,
   balance: BalanceResponse | undefined,
+  photoDataUrl?: string | null,
 ) {
   const doc = new jsPDF();
   const pw = doc.internal.pageSize.getWidth();
@@ -158,8 +218,17 @@ export function generatePaymentHistoryPdf(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...C.textMuted);
-  doc.text('INFORMATIONS ÉLÈVE', M.left, y);
+  doc.text('INFORMATIONS DE L\'ÉLÈVE', M.left, y);
   y += 8;
+
+  // Photo on the right
+  const photoX = pw - M.right - PHOTO_W;
+  const photoY = y - 2;
+  if (photoDataUrl) {
+    drawPhoto(doc, photoDataUrl, photoX, photoY);
+  } else {
+    drawPhotoPlaceholder(doc, photoX, photoY);
+  }
 
   const infoLeft = [
     ['Nom complet', `${student.firstName} ${student.lastName}`],
@@ -204,7 +273,10 @@ export function generatePaymentHistoryPdf(
     doc.text(value, midX + 34, rowY);
   });
 
-  y += Math.max(infoLeft.length, infoRight.length) * 11 + 6;
+  y += Math.max(
+    Math.max(infoLeft.length, infoRight.length) * 11 + 6,
+    PHOTO_H + 4,
+  );
 
   // ═══════════════════════════════════════════════════════
   // 3. FINANCIAL SUMMARY

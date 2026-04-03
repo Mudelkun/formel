@@ -39,3 +39,18 @@ export async function fetchFileAsBlob(storedUrl: string): Promise<string> {
   const response = await api.get(path, { responseType: 'blob' });
   return URL.createObjectURL(response.data);
 }
+
+/**
+ * Fetches a file through the authenticated API and returns a base64 data URL.
+ * Use this for embedding images in generated PDFs.
+ */
+export async function fetchFileAsBase64(storedUrl: string): Promise<string> {
+  const path = `/files/${toKey(storedUrl)}`;
+  const response = await api.get(path, { responseType: 'blob' });
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(response.data);
+  });
+}

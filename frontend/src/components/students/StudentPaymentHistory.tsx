@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Receipt, Download, Loader2 } from 'lucide-react';
 import { generatePaymentHistoryPdf } from '@/lib/generate-payment-pdf';
+import { fetchFileAsBase64 } from '@/lib/fileUrl';
 import type { StudentDetail } from '@/types/student';
 
 interface Props {
@@ -48,15 +49,19 @@ export default function StudentPaymentHistory({ student }: Props) {
   async function handleDownload() {
     setIsPdfLoading(true);
     try {
-      const [paymentsResult, balanceResult] = await Promise.all([
+      const [paymentsResult, balanceResult, photoDataUrl] = await Promise.all([
         refetchPayments(),
         refetchBalance(),
+        student.profilePhotoUrl
+          ? fetchFileAsBase64(student.profilePhotoUrl).catch(() => null)
+          : Promise.resolve(null),
       ]);
       generatePaymentHistoryPdf(
         student,
         paymentsResult.data?.data ?? payments,
         settings,
         balanceResult.data ?? balance,
+        photoDataUrl,
       );
     } finally {
       setIsPdfLoading(false);

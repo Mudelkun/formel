@@ -21,7 +21,6 @@ export default function StudentEnrollmentCard({ student }: Props) {
   const { user } = useAuth();
   const enrollment = student.currentEnrollment;
   const isAdmin = user?.role === 'admin';
-  const canManage = isAdmin || user?.role === 'secretary';
 
   const promote = usePromoteStudent(student.id);
   const downgrade = useDowngradeStudent(student.id);
@@ -91,7 +90,7 @@ export default function StudentEnrollmentCard({ student }: Props) {
               </div>
             )}
 
-            {canManage && currentStatus === 'enrolled' && (
+            {isAdmin && currentStatus === 'enrolled' && (
               <div className="flex gap-2 pt-2 border-t">
                 <Button
                   size="sm"

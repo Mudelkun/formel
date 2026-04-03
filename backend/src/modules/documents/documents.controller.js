@@ -21,4 +21,9 @@ const uploadPhoto = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
-module.exports = { listDocuments, uploadDocument, deleteDocument, uploadPhoto };
+const deletePhoto = asyncHandler(async (req, res) => {
+  await documentsService.deletePhoto(req.params.id);
+  res.status(204).send();
+});
+
+module.exports = { listDocuments, uploadDocument, deleteDocument, uploadPhoto, deletePhoto };

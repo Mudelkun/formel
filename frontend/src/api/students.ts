@@ -54,6 +54,10 @@ export async function uploadPhoto(studentId: string, file: File): Promise<{ prof
   return data;
 }
 
+export async function deletePhoto(studentId: string): Promise<void> {
+  await api.delete(`/students/${studentId}/photo`);
+}
+
 // ── Documents ─────────────────────────────────────────────
 
 export async function listDocuments(studentId: string): Promise<{ data: StudentDocument[] }> {

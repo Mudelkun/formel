@@ -6,6 +6,7 @@ import {
   getStudent,
   updateStudent,
   uploadPhoto,
+  deletePhoto,
   listDocuments,
   uploadDocument,
   deleteDocument,
@@ -94,6 +95,20 @@ export function useUploadPhoto(studentId: string) {
     },
     onError: () => {
       toast.error('Erreur lors de l\'envoi de la photo');
+    },
+  });
+}
+
+export function useDeletePhoto(studentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => deletePhoto(studentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students', 'detail', studentId] });
+      toast.success('Photo supprimée');
+    },
+    onError: () => {
+      toast.error('Erreur lors de la suppression de la photo');
     },
   });
 }

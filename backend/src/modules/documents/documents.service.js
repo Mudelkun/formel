@@ -115,4 +115,27 @@ async function uploadPhoto(studentId, file) {
   return { profilePhotoUrl: url };
 }
 
-module.exports = { listDocuments, uploadDocument, deleteDocument, uploadPhoto };
+async function deletePhoto(studentId) {
+  const [student] = await db
+    .select()
+    .from(students)
+    .where(eq(students.id, studentId));
+
+  if (!student) {
+    throw new AppError(404, 'Student not found');
+  }
+
+  if (!student.profilePhotoUrl) {
+    throw new AppError(400, 'Aucune photo à supprimer');
+  }
+
+  const key = extractKeyFromUrl(student.profilePhotoUrl);
+  await deleteFile(key);
+
+  await db
+    .update(students)
+    .set({ profilePhotoUrl: null, updatedAt: new Date() })
+    .where(eq(students.id, studentId));
+}
+
+module.exports = { listDocuments, uploadDocument, deleteDocument, uploadPhoto, deletePhoto };

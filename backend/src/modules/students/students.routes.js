@@ -39,6 +39,7 @@ const {
   uploadDocument,
   deleteDocument,
   uploadPhoto,
+  deletePhoto,
 } = require('../documents/documents.controller');
 
 // Balance
@@ -60,11 +61,12 @@ router.get('/:id', auth, authorize('admin', 'secretary', 'teacher'), validate(st
 router.patch('/:id', auth, authorize('admin', 'secretary'), validate(updateStudentSchema), updateStudent);
 
 // Promote / Downgrade
-router.post('/:id/promote', auth, authorize('admin', 'secretary'), validate(studentIdParamSchema), promoteStudent);
-router.post('/:id/downgrade', auth, authorize('admin', 'secretary'), validate(studentIdParamSchema), downgradeStudent);
+router.post('/:id/promote', auth, authorize('admin'), validate(studentIdParamSchema), promoteStudent);
+router.post('/:id/downgrade', auth, authorize('admin'), validate(studentIdParamSchema), downgradeStudent);
 
 // Photo
 router.post('/:id/photo', auth, authorize('admin', 'secretary'), upload.single('photo'), uploadPhoto);
+router.delete('/:id/photo', auth, authorize('admin', 'secretary'), validate(studentIdParamSchema), deletePhoto);
 
 // Documents
 router.get('/:id/documents', auth, authorize('admin', 'secretary'), validate(studentIdParamSchema), listDocuments);
