@@ -15,6 +15,8 @@ const { schoolSettings } = require('./schoolSettings');
 const { auditLogs } = require('./auditLogs');
 const { refreshTokens } = require('./refreshTokens');
 const { messageLogs } = require('./messageLogs');
+const { verificationCodes } = require('./verificationCodes');
+const { trustedDevices } = require('./trustedDevices');
 
 module.exports = {
   students,
@@ -34,4 +36,6 @@ module.exports = {
   auditLogs,
   refreshTokens,
   messageLogs,
+  verificationCodes,
+  trustedDevices,
 };

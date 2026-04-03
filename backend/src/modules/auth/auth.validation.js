@@ -7,4 +7,11 @@ const loginSchema = z.object({
   }),
 });
 
-module.exports = { loginSchema };
+const verifyDeviceSchema = z.object({
+  body: z.object({
+    sessionToken: z.string().min(1),
+    code: z.string().length(6).regex(/^\d{6}$/, 'Code must be 6 digits'),
+  }),
+});
+
+module.exports = { loginSchema, verifyDeviceSchema };

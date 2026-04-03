@@ -32,6 +32,10 @@ const filesRouter = require('./modules/files/files.routes');
 
 const app = express();
 
+// Trust the first proxy hop (Railway, Render, etc.) so req.ip reflects the
+// real client IP from the X-Forwarded-For header instead of the proxy's IP.
+app.set('trust proxy', 1);
+
 // --- CORS: whitelist specific origins ---
 app.use(cors({
   origin: env.CORS_ORIGINS,
