@@ -10,7 +10,7 @@ const errorHandler = (err, req, res, next) => {
 
   if (err.name === 'MulterError') {
     const messages = {
-      LIMIT_FILE_SIZE: 'Le fichier dépasse la taille maximale de 10 Mo. Veuillez choisir un fichier plus petit.',
+      LIMIT_FILE_SIZE: 'Le fichier dépasse la taille maximale de 30 Mo. Veuillez choisir un fichier plus petit.',
       LIMIT_UNEXPECTED_FILE: 'Type de fichier non supporté.',
     };
     const message = messages[err.code] || `Erreur de téléchargement: ${err.message}`;

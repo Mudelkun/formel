@@ -39,7 +39,15 @@ app.use(cors({
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'img-src': ["'self'", 'blob:', 'data:'],
+      'frame-src': ["'self'", 'blob:'],
+    },
+  },
+}));
 app.use(express.json());
 app.use(cookieParser());
 

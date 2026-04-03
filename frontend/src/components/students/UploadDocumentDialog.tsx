@@ -30,16 +30,36 @@ export default function UploadDocumentDialog({ studentId, open, onOpenChange }: 
   const uploadDoc = useUploadDocument(studentId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState('');
   const [documentType, setDocumentType] = useState('birth_certificate');
+
+  const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30 Mo
+
+  function handleFileChange(selected: File | undefined) {
+    if (!selected) { setFile(null); setFileError(''); return; }
+    if (selected.size > MAX_FILE_SIZE) {
+      setFile(null);
+      setFileError('Le fichier dépasse la taille maximale de 30 Mo.');
+    } else {
+      setFile(selected);
+      setFileError('');
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!file) return;
 
-    await uploadDoc.mutateAsync({ file, documentType });
-    setFile(null);
-    setDocumentType('birth_certificate');
-    onOpenChange(false);
+    try {
+      await uploadDoc.mutateAsync({ file, documentType });
+      setFile(null);
+      setFileError('');
+      setDocumentType('birth_certificate');
+      onOpenChange(false);
+    } catch (error: any) {
+      const message = error?.response?.data?.error?.message || 'Erreur lors de l\'envoi du document';
+      setFileError(message);
+    }
   }
 
   return (
@@ -81,13 +101,16 @@ export default function UploadDocumentDialog({ studentId, open, onOpenChange }: 
                     {(file.size / 1024 / 1024).toFixed(2)} Mo
                   </p>
                 )}
+                {fileError && (
+                  <p className="text-xs text-destructive mt-1">{fileError}</p>
+                )}
               </div>
             </div>
             <input
               ref={fileInputRef}
               type="file"
               className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => handleFileChange(e.target.files?.[0])}
             />
           </div>
 
@@ -95,7 +118,7 @@ export default function UploadDocumentDialog({ studentId, open, onOpenChange }: 
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={!file || uploadDoc.isPending}>
+            <Button type="submit" disabled={!file || !!fileError || uploadDoc.isPending}>
               {uploadDoc.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Télécharger
             </Button>

@@ -370,9 +370,9 @@ export default function CreatePaymentDialog({ open, onOpenChange }: Props) {
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) {
-                    const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+                    const MAX_SIZE = 30 * 1024 * 1024; // 30 MB
                     if (f.size > MAX_SIZE) {
-                      setFileError('Le fichier dépasse la taille maximale de 10 Mo. Veuillez choisir un fichier plus petit.');
+                      setFileError('Le fichier dépasse la taille maximale de 30 Mo. Veuillez choisir un fichier plus petit.');
                       setProofFile(null);
                     } else {
                       setProofFile(f);

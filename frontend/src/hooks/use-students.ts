@@ -118,8 +118,9 @@ export function useUploadDocument(studentId: string) {
       queryClient.invalidateQueries({ queryKey: ['students', studentId, 'documents'] });
       toast.success('Document ajouté');
     },
-    onError: () => {
-      toast.error('Erreur lors de l\'envoi du document');
+    onError: (error: any) => {
+      const message = error?.response?.data?.error?.message || 'Erreur lors de l\'envoi du document';
+      toast.error(message);
     },
   });
 }

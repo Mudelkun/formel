@@ -3,6 +3,7 @@ const { r2 } = require('../config/r2');
 const { env } = require('../config/env');
 
 async function uploadFile(buffer, key, contentType) {
+  if (!r2) throw new Error('R2 storage is not configured — file uploads are disabled');
   await r2.send(new PutObjectCommand({
     Bucket: env.R2_BUCKET_NAME,
     Key: key,
@@ -14,6 +15,7 @@ async function uploadFile(buffer, key, contentType) {
 }
 
 async function streamFile(key) {
+  if (!r2) throw new Error('R2 storage is not configured — file uploads are disabled');
   const response = await r2.send(new GetObjectCommand({
     Bucket: env.R2_BUCKET_NAME,
     Key: key,
@@ -26,6 +28,7 @@ async function streamFile(key) {
 }
 
 async function deleteFile(key) {
+  if (!r2) throw new Error('R2 storage is not configured — file uploads are disabled');
   await r2.send(new DeleteObjectCommand({
     Bucket: env.R2_BUCKET_NAME,
     Key: key,
