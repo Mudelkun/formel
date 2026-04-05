@@ -151,7 +151,7 @@ export default function LoginPage() {
           </p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+          <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4" autoComplete="off">
             {error && (
               <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {error}
@@ -162,9 +162,10 @@ export default function LoginPage() {
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
-                type="email"
+                type="text"
+                inputMode="email"
                 placeholder="nom@exemple.com"
-                autoComplete="email"
+                autoComplete="new-email-nope"
                 {...loginForm.register('email')}
               />
               {loginForm.formState.errors.email && (
@@ -177,9 +178,10 @@ export default function LoginPage() {
               <div className="relative">
                 <Input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type="text"
                   placeholder="••••••••"
-                  autoComplete="current-password"
+                  autoComplete="new-password-nope"
+                  className={showPassword ? '' : '[&]:[-webkit-text-security:disc] [&]:[-moz-text-security:disc]'}
                   {...loginForm.register('password')}
                 />
                 <button
